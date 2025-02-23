@@ -4,6 +4,8 @@ from helper.config import TOOLS, PARAMETERS, PATHS
 from helper.path_define import bamlist_dir, glimpse_outdir, dbsnp_dir, glimpse_annot
 from helper.path_define import filtered_vcf_path, filtered_tsv_path, chunks_path, norm_vcf_path, glimpse_vcf
 from helper.logger import setup_logger
+from concurrent.futures import ThreadPoolExecutor
+
 
 # Thiết lập logger
 logger = setup_logger(os.path.join(PATHS["logs"], "glimpse_pipeline.log"))
@@ -19,8 +21,6 @@ MAP_PATH = PATHS["map_path"]
 
 def compute_gls(fq, chromosome):
     glpath = os.path.join(glimpse_outdir(fq), "GL_file")
-    os.makedirs(glpath, exist_ok=True)
-
     bamlist = bamlist_dir(fq)
     with open(bamlist, "r") as bam_file:
         bam_lines = bam_file.readlines()
@@ -57,8 +57,6 @@ def compute_gls(fq, chromosome):
 def merge_gls(fq, chromosome):
     glpath = os.path.join(glimpse_outdir(fq), "GL_file")
     glmergepath = os.path.join(glimpse_outdir(fq), "GL_file_merged")
-    os.makedirs(glmergepath, exist_ok=True)
-
     gl_list_path = os.path.join(glpath, f"glimpse.{chromosome}_GL_list.txt")
     merged_vcf = os.path.join(glmergepath, f"glimpse.{chromosome}.vcf.gz")
 
@@ -86,7 +84,6 @@ def merge_gls(fq, chromosome):
 def phase_genome(fq, chromosome):
     glmergepath = os.path.join(glimpse_outdir(fq), "GL_file_merged")
     imputed_path = os.path.join(glimpse_outdir(fq), "imputed_file")
-    os.makedirs(imputed_path, exist_ok=True)
 
     map_file = os.path.join(MAP_PATH, f"{chromosome}.b38.gmap.gz")
     reference_vcf = norm_vcf_path(chromosome)
@@ -125,9 +122,6 @@ def phase_genome(fq, chromosome):
 
 def extract_chunk_id(fq, chromosome):
     imputed_path = os.path.join(glimpse_outdir(fq), "imputed_file")
-    merged_path = os.path.join(glimpse_outdir(fq))
-    os.makedirs(merged_path, exist_ok=True)
-
     imputed_list = os.path.join(imputed_path, f"glimpse.{chromosome}_imputed_list.txt")
 
     # Hàm trích xuất chunk_id từ tên file
@@ -209,37 +203,47 @@ def annotate(fq, chromosome):
     logger.info(f"Saved filtered annotations to {output}")
 
 
-def delete_tmp_dir(fq):
-    logger.info(f"Deleting tmp dir for {fq}")
+def run_glimpse_chr(fq, chromosome):
+    print(f"Run glimpse for {fq} {chromosome}")
+
+    if os.path.exists(glimpse_annot(fq, chromosome)):
+        logger.info(f"Đã có kết quả glimpse cho mẫu {fq} với {chromosome}")
+        return
+
+    logger.info(f"Starting pipeline for chromosome {chromosome}...")
+
+    # Step 1: Compute GLs
+    compute_gls(fq, chromosome)
+
+    # Step 2: Merge GLs
+    merge_gls(fq, chromosome)
+
+    # Step 3: Phase genome
+    phase_genome(fq, chromosome)
+
+    # Step 4: Ligate genome
+    extract_chunk_id(fq, chromosome)
+    ligate_genome(fq, chromosome)
+
+    #step5: Annotate
+    annotate(fq, chromosome)
+
+    logger.info(f"Pipeline completed for chromosome {chromosome}.")
+
+
+def run_glimpse(fq):    
+    os.makedirs(os.path.join(glimpse_outdir(fq), "GL_file"), exist_ok=True)
+    os.makedirs(os.path.join(glimpse_outdir(fq), "GL_file_merged"), exist_ok=True)
+    os.makedirs(os.path.join(glimpse_outdir(fq), "imputed_file"), exist_ok=True)
+    os.makedirs(os.path.join(glimpse_outdir(fq), "imputed"), exist_ok=True)
+    os.makedirs(os.path.join(glimpse_outdir(fq), "annotated"), exist_ok=True)
+
+
+    with ThreadPoolExecutor(max_workers=PARAMETERS["threads"]) as executor:
+        executor.map(lambda chr: run_glimpse_chr(fq, chr), PARAMETERS["chrs"])
+
+    
     shutil.rmtree(os.path.join(glimpse_outdir(fq), "GL_file"))
     shutil.rmtree(os.path.join(glimpse_outdir(fq), "GL_file_merged"))
     shutil.rmtree(os.path.join(glimpse_outdir(fq), "imputed_file"))
     logger.info(f"Deleted tmp dir for {fq}")
-
-def run_glimpse(fq):
-    for chromosome in PARAMETERS["chrs"]:        
-        if os.path.exists(glimpse_annot(fq, chromosome)):
-            logger.info(f"Đã có kết quả glimpse cho mẫu {fq} với {chromosome}")
-            return
-
-        logger.info(f"Starting pipeline for chromosome {chromosome}...")
-
-        # Step 1: Compute GLs
-        compute_gls(fq, chromosome)
-
-        # Step 2: Merge GLs
-        merge_gls(fq, chromosome)
-
-        # Step 3: Phase genome
-        phase_genome(fq, chromosome)
-
-        # Step 4: Ligate genome
-        extract_chunk_id(fq, chromosome)
-        ligate_genome(fq, chromosome)
-
-        #step5: Annotate
-        annotate(fq, chromosome)
-
-        logger.info(f"Pipeline completed for chromosome {chromosome}.")
-    
-    delete_tmp_dir(fq)

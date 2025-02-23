@@ -1,67 +1,67 @@
+from pipeline.generate import generate_single_sample, generate_nipt_sample
+from pipeline.alignment import run_alignment_pipeline
+from pipeline.basevar import run_basevar
+from pipeline.glimpse import run_glimpse
+from statistic.statistic import run_statistic
+
+from pipeline.reference_panel_prepare import prepare_reference_panel
+from helper.config import PARAMETERS, TRIO_DATA, PATHS
+from helper.metrics import get_fastq_coverage
+from helper.logger import setup_logger
+from helper.file_utils import extract_lane1_fq
 from helper.converter import convert_cram_to_fastq
-from helper.path_define import cram_path, fastq_path
-from helper.metrics import compare_fastq_sequences, evaluate_vcf
-import sys, os
-import pandas as pd
-from helper.file_utils import process_vcf
-from statistic.GT import get_af_gt_different
+from helper.path_define import fastq_path, fastq_path_lane1, fastq_path_lane2, cram_path, fastq_single_path, fastq_nipt_path
+import os, sys
+from concurrent.futures import ThreadPoolExecutor
 
-def compare_single_variants(sample1, sample2):
+
+logger = setup_logger(os.path.join(PATHS["logs"], "main.log"))
+
+
+def pipeline_for_sample(fastq_dir):
+    logger.info(f"Run all pipeline for sample in {fastq_dir}")
+    run_alignment_pipeline(fastq_dir)
+    run_basevar(fastq_dir)
+    run_glimpse(fastq_dir)
+
+def prepare_data(name):
+    print(f"Preparing data for {name}")
+    if not os.path.exists(fastq_path_lane1(name)):
+        convert_cram_to_fastq(cram_path(name), fastq_path_lane1(name), fastq_path_lane2(name))
+    #return get_fastq_coverage(name)
+
+def process_trio(trio_name, trio_info):
     """
-    So sánh biến thể giữa các phương pháp và lưu kết quả ra file CSV.
+    Xử lý một trio (bao gồm các bước pipeline cho từng mẫu).
     """
-    try:
-        sample1_df = process_vcf(sample1, "sample1")
-        sample2_df = process_vcf(sample2, "sample2")
+    logger.info(f"######## PROCESSING TRIO: {trio_name} ########")
 
-        merged_df = pd.merge(sample1_df, sample2_df, on=["CHROM", "POS", "REF", "ALT"], how="outer")
+    child_name = trio_info["child"]
+    mother_name = trio_info["mother"]
+    father_name = trio_info["father"]
 
-        return merged_df
-    except Exception as e:
-        raise
-
-
-def update_stats(stats, af, field):
-    """
-    Kiểm tra xem af đã có trong stats chưa, nếu chưa thì thêm mới, nếu có thì cập nhật trường 'field'.
-    """
-    if af < 0:
-        return stats
     
-    if af not in stats:
-        stats[af] = {
-            "GT Dffference": 0,
-        }
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        executor.map(prepare_data, [child_name, mother_name])
 
-    # Cập nhật giá trị của trường 'field'
-    stats[af][field] += 1
-    return stats
+        #mother_avg_coverage = future_mother.result()
+        #child_avg_coverage = future_child.result()
 
 
-def calculate_af_single_statistics(df):
-    """
-    Tính toán thống kê cho từng giá trị AF và trả về dưới dạng dictionary.
-    Mỗi entry trong dictionary sẽ chứa các thống kê cho một giá trị AF.
-    """
-    stats = {}
+    for index in range(PARAMETERS["startSampleIndex"], PARAMETERS["endSampleIndex"] + 1):
+        logger.info(f"######## PROCESSING index {index} ########")
 
-    for _, row in df.iterrows():
-        stats = update_stats(stats, get_af_gt_different(row, "sample1", "sample2"), "GT Dffference")
-    print(stats)
-    return stats
+        for coverage in PARAMETERS["coverage"]:
+            #pipeline_for_sample(generate_single_sample(mother_name, coverage, index))
+
+            for ff in PARAMETERS["ff"]:
+                pipeline_for_sample(generate_nipt_sample(child_name, mother_name, father_name, coverage, ff, index))
 
 
 def main():
-    file1 = "/home/huettt/Documents/nipt/NIPT-human-genetics/working/result/sample1/glimpse_output/imputed_file_merged/glimpse.chr20_imputed.vcf.gz"
-    file2 = "/home/huettt/Documents/nipt/NIPT-human-genetics/working/result/sample2/glimpse_output/imputed_file_merged/glimpse.chr20_imputed.vcf.gz"
-    
-    b1 = "/home/huettt/Documents/nipt/NIPT-human-genetics/working/result/sample1/basevar_output/NIPT_basevar_chr20.vcf.gz"
-    b2 = "/home/huettt/Documents/nipt/NIPT-human-genetics/working/result/sample2/basevar_output/NIPT_basevar_chr20.vcf.gz"
-    df = compare_single_variants(file1, file2)
-    calculate_af_single_statistics(df)
+    sample1 = "/home/huettt/Documents/nipt/NIPT-human-genetics/working/result/sample1/PGT-sample1.fastq.gz"
+    pipeline_for_sample(sample1)
 
 
 if __name__ == "__main__":
     main()
-
-

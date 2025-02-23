@@ -29,45 +29,36 @@ def load_reference_fai(in_fai, chroms=None):
     return ref
 
 
-def run_basevar_region(fq, chromosome, chr_id, start, end, bamlist_path, outdir):
-    region = f"{chr_id}:{start}-{end}"
-    outfile_prefix = f"{chr_id}_{start}_{end}"
-    logger.info(f"Starting BaseVar for region {region}")
-
-    command = [
-        TOOLS['basevar'], "basetype",
-        "-t", f"{PARAMETERS['threads']}",
-        "-R", REF,
-        "-L", bamlist_path,
-        "-r", region,
-        "--min-af=0.001",
-        "--output-vcf", f"{outdir}/{outfile_prefix}.vcf.gz",
-        "--output-cvg", f"{outdir}/{outfile_prefix}.cvg.tsv.gz",
-        "--smart-rerun"
-    ]
-
-    log_file = f"{outdir}/{outfile_prefix}.log"
-    with open(log_file, "w") as log:
-        subprocess.run(command, stdout=log, stderr=subprocess.STDOUT, check=True)
-        logger.info(f"Done BaseVar for region {region}")
-
 def run_basevar_step(fq, chromosome):
     ref_fai = load_reference_fai(REF_FAI, [chromosome])
     bamlist_path = bamlist_dir(fq)
     outdir = basevar_outdir(fq)
-    os.makedirs(outdir,exist_ok=True)
 
-    tasks = []
     for chr_id, reg_start, reg_end in ref_fai:
         for i in range(reg_start - 1, reg_end, DELTA):
             start = i + 1
             end = min(i + DELTA, reg_end)
-            tasks.append((fq, chromosome, chr_id, start, end, bamlist_path, outdir))
+            region = f"{chr_id}:{start}-{end}"
+            outfile_prefix = f"{chr_id}_{start}_{end}"
 
-    with ThreadPoolExecutor(max_workers=PARAMETERS['threads']) as executor:
-        executor.map(lambda args: run_basevar_region(*args), tasks)
+            logger.info(f"Starting BaseVar for {fq} region {region}")
+            
+            command = [
+                TOOLS['basevar'], "basetype",
+                "-t", f"{PARAMETERS['threads']}",
+                "-R", REF,
+                "-L", bamlist_path,
+                "-r", region,
+                "--min-af=0.001",
+                "--output-vcf", f"{outdir}/{outfile_prefix}.vcf.gz",
+                "--output-cvg", f"{outdir}/{outfile_prefix}.cvg.tsv.gz",
+                "--smart-rerun"
+            ]
 
-    logger.info(f"All BaseVar jobs for {chromosome} are done!")
+            log_file = f"{outdir}/{outfile_prefix}.log"
+            with open(log_file, "w") as log:
+                subprocess.run(command, stdout=log, stderr=subprocess.STDOUT, check=True)
+                logger.info(f"Done BaseVar for {fq} region {region}")
 
 
 def create_vcf_list(fq, chromosome):
@@ -93,7 +84,7 @@ def merge_vcf_files(fq, chromosome):
         "-o", merged_vcf
     ] + [line.strip() for line in open(vcf_list_path)]
 
-    logger.info(f"Merging VCF files for chromosome {chromosome}")
+    logger.info(f"Merging VCF files for {fq} chromosome {chromosome}")
     process = subprocess.run(command, capture_output=True, text=True)
     if process.returncode != 0:
         logger.error(f"VCF merge failed: {process.stderr}")
@@ -112,23 +103,34 @@ def index_vcf_file(vcf_path):
     logger.info(f"VCF file indexed at {vcf_path}")
 
 
+def run_basevar_chr(fq, chromosome): 
+    print(f"Run basevar for {fq} {chromosome}")
+    if os.path.exists(basevar_vcf(fq, chromosome)):
+        logger.info(f"Đã có kết quả basevar cho mẫu {fq} với {chromosome}.")
+        return
+
+    # Step 1: Run BaseVar for the chromosome
+    run_basevar_step(fq, chromosome)
+
+    # Step 2: Merge VCF files for the chromosome
+    merged_vcf = merge_vcf_files(fq, chromosome)
+
+    # Step 3: Index the merged VCF file
+    index_vcf_file(merged_vcf)
+
+    logger.info(f"Completed processing for {fq} chromosome {chromosome}")
+
+
 def run_basevar(fq):
-    for chromosome in PARAMETERS["chrs"]:
-        if os.path.exists(basevar_vcf(fq, chromosome)):
-            logger.info(f"Đã có kết quả basevar cho mẫu {fq} với {chromosome}.")
-            return
+    os.makedirs(f"{basevar_outdir(fq)}_final",exist_ok=True)
+    os.makedirs(f"{basevar_outdir(fq)}",exist_ok=True)
 
-        # Step 1: Run BaseVar for the chromosome
-        run_basevar_step(fq, chromosome)
+    run_basevar_chr(fq, 1)
+    return
 
-        # Step 2: Merge VCF files for the chromosome
-        merged_vcf = merge_vcf_files(fq, chromosome)
-
-        # Step 3: Index the merged VCF file
-        index_vcf_file(merged_vcf)
-
-        logger.info(f"Completed processing for chromosome {chromosome}")
+    with ThreadPoolExecutor(max_workers=PARAMETERS["threads"]) as executor:
+        executor.map(lambda chr: run_basevar_chr(fq, chr), PARAMETERS["chrs"])
 
     logger.info(f"Completed BaseVar pipeline for {fq}")
-    shutil.rmtree(basevar_outdir(fq))
+    #shutil.rmtree(basevar_outdir(fq))
     logger.info(f"Temporary directory {basevar_outdir(fq)} deleted.")
