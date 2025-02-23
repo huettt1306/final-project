@@ -50,7 +50,7 @@ def glimpse_outdir(fq):
 
 def vcf_prefix(chromosome):
     if(chromosome == "chrX"):
-        return "CCDG_14151_B01_GRM_WGS_2020-08-05_chrX.filtered.eagle2-phased.v2.vcf.gz"
+        return "CCDG_14151_B01_GRM_WGS_2020-08-05_chrX.filtered.eagle2-phased.v2"
     return f"CCDG_14151_B01_GRM_WGS_2020-08-05_{chromosome}.filtered.shapeit2-duohmm-phased"
 
 def get_vcf_path(chromosome):

@@ -48,7 +48,7 @@ def filter_and_trim_with_seqtk(input_file, output_file, num_reads, max_length=PA
     logger.info(f"Filtering {num_reads} reads from {input_file} and trimming to {max_length}bp...")
     print(f"Filtering {num_reads} reads from {input_file} and trimming to {max_length}bp...")
 
-    temp_output = os.path.join(os.path.dirname(output_file), "tmp.fastq")
+    temp_output = output_file.replace(".fastq.gz", "_tmp.fastq.gz")
 
     if not os.path.exists(input_file):
         logger.error(f"Sample {input_file} cannot be read.")
