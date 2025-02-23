@@ -34,6 +34,8 @@ def run_basevar_step(fq, chromosome):
     bamlist_path = bamlist_dir(fq)
     outdir = basevar_outdir(fq)
 
+    print(f"Run basevar step for {fq} {chromosome} with ref_fai {ref_fai} and delta {DELTA}")
+
     for chr_id, reg_start, reg_end in ref_fai:
         for i in range(reg_start - 1, reg_end, DELTA):
             start = i + 1
@@ -41,7 +43,7 @@ def run_basevar_step(fq, chromosome):
             region = f"{chr_id}:{start}-{end}"
             outfile_prefix = f"{chr_id}_{start}_{end}"
 
-            logger.info(f"Starting BaseVar for {fq} region {region}")
+            print(f"Starting BaseVar for {fq} region {region}")
             
             command = [
                 TOOLS['basevar'], "basetype",
@@ -56,20 +58,27 @@ def run_basevar_step(fq, chromosome):
             ]
 
             log_file = f"{outdir}/{outfile_prefix}.log"
-            with open(log_file, "w") as log:
-                subprocess.run(command, stdout=log, stderr=subprocess.STDOUT, check=True)
-                logger.info(f"Done BaseVar for {fq} region {region}")
+            try:
+                with open(log_file, "w") as log:
+                    subprocess.run(command, stdout=log, stderr=subprocess.STDOUT, check=True)
+                    logger.info(f"Done BaseVar for region {region}")
+            except subprocess.CalledProcessError as e:
+                logger.error(f"BaseVar failed for region {region} with error: {e}")
+                continue  # B? qua l?i và ti?p t?c pipeline
+            except Exception as e:
+                logger.error(f"Unexpected error occurred for region {region}: {e}")
+                continue  # B? qua l?i và ti?p t?c pipeline
 
 
 def create_vcf_list(fq, chromosome):
     vcf_list = vcf_list_path(fq, chromosome)
-    logger.info(f"Creating VCF list for chromosome {chromosome}")
+    print(f"Creating VCF list for chromosome {chromosome}")
     with open(vcf_list, "w") as f:
         for root, _, files in os.walk(basevar_outdir(fq)):
             for file in files:
                 if file.endswith(".vcf.gz") and f"{chromosome}_" in file:
                     f.write(os.path.join(root, file) + "\n")
-    logger.info(f"VCF list saved at {vcf_list}")
+    print(f"VCF list saved at {vcf_list}")
     return vcf_list
 
 def merge_vcf_files(fq, chromosome):
@@ -84,29 +93,29 @@ def merge_vcf_files(fq, chromosome):
         "-o", merged_vcf
     ] + [line.strip() for line in open(vcf_list_path)]
 
-    logger.info(f"Merging VCF files for {fq} chromosome {chromosome}")
+    print(f"Merging VCF files for {fq} chromosome {chromosome}")
     process = subprocess.run(command, capture_output=True, text=True)
     if process.returncode != 0:
         logger.error(f"VCF merge failed: {process.stderr}")
         raise RuntimeError(f"VCF merge failed: {process.stderr}")
-    logger.info(f"Merged VCF file created at {merged_vcf}")
+    print(f"Merged VCF file created at {merged_vcf}")
     return merged_vcf
 
 def index_vcf_file(vcf_path):
     command = [TABIX, "-f", "-p", "vcf", vcf_path]
 
-    logger.info(f"Indexing VCF file {vcf_path}")
+    print(f"Indexing VCF file {vcf_path}")
     process = subprocess.run(command, capture_output=True, text=True)
     if process.returncode != 0:
         logger.error(f"VCF indexing failed: {process.stderr}")
         raise RuntimeError(f"VCF indexing failed: {process.stderr}")
-    logger.info(f"VCF file indexed at {vcf_path}")
+    print(f"VCF file indexed at {vcf_path}")
 
 
 def run_basevar_chr(fq, chromosome): 
     print(f"Run basevar for {fq} {chromosome}")
     if os.path.exists(basevar_vcf(fq, chromosome)):
-        logger.info(f"Đã có kết quả basevar cho mẫu {fq} với {chromosome}.")
+        print(f"Đã có kết quả basevar cho mẫu {fq} với {chromosome}.")
         return
 
     # Step 1: Run BaseVar for the chromosome
@@ -118,19 +127,16 @@ def run_basevar_chr(fq, chromosome):
     # Step 3: Index the merged VCF file
     index_vcf_file(merged_vcf)
 
-    logger.info(f"Completed processing for {fq} chromosome {chromosome}")
+    print(f"Completed processing for {fq} chromosome {chromosome}")
 
 
 def run_basevar(fq):
     os.makedirs(f"{basevar_outdir(fq)}_final",exist_ok=True)
     os.makedirs(f"{basevar_outdir(fq)}",exist_ok=True)
 
-    run_basevar_chr(fq, 1)
-    return
-
     with ThreadPoolExecutor(max_workers=PARAMETERS["threads"]) as executor:
         executor.map(lambda chr: run_basevar_chr(fq, chr), PARAMETERS["chrs"])
 
-    logger.info(f"Completed BaseVar pipeline for {fq}")
-    #shutil.rmtree(basevar_outdir(fq))
-    logger.info(f"Temporary directory {basevar_outdir(fq)} deleted.")
+    print(f"Completed BaseVar pipeline for {fq}")
+    shutil.rmtree(basevar_outdir(fq))
+    print(f"Temporary directory {basevar_outdir(fq)} deleted.")
