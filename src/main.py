@@ -4,7 +4,7 @@ from pipeline.basevar import run_basevar
 from pipeline.glimpse import run_glimpse
 from statistic.statistic import run_statistic
 
-from pipeline.reference_panel_prepare import prepare_reference_panel
+from pipeline.reference_panel_prepare import run_prepare_reference_panel
 from helper.config import PARAMETERS, TRIO_DATA, PATHS
 from helper.metrics import get_fastq_coverage
 from helper.logger import setup_logger
@@ -55,13 +55,12 @@ def process_trio(trio_name, trio_info):
         for coverage in PARAMETERS["coverage"]:
             pipeline_for_sample(generate_single_sample(mother_name, coverage, index))
 
-            for ff in PARAMETERS["ff"]:
-                pipeline_for_sample(generate_nipt_sample(child_name, mother_name, father_name, coverage, ff, index))
+           # for ff in PARAMETERS["ff"]:
+            #    pipeline_for_sample(generate_nipt_sample(child_name, mother_name, father_name, coverage, ff, index))
 
 
 def main():
-    #prepare_reference_panel()
-
+    #run_prepare_reference_panel()
     if len(sys.argv) < 2:
         logger.error("Please provide a trio name to process.")
         sys.exit(1)
@@ -77,7 +76,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-# 0.1 0.2 0.5 1.0 cov
-# 5%, 10%, 20% ff
-# bước fill snp missing: Tìm option tăng số snp call được 

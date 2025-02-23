@@ -1,5 +1,6 @@
 import subprocess
 import os
+import shutil
 from helper.config import TOOLS, PARAMETERS, PATHS
 from helper.path_define import basevar_outdir, bamlist_dir, vcf_list_path, basevar_vcf
 from helper.logger import setup_logger
@@ -101,7 +102,7 @@ def merge_vcf_files(fq, chromosome):
     return merged_vcf
 
 def index_vcf_file(vcf_path):
-    command = [TABIX, "-f", "-@", f"{PARAMETERS['threads']}", "-p", "vcf", vcf_path]
+    command = [TABIX, "-f", "-p", "vcf", vcf_path]
 
     logger.info(f"Indexing VCF file {vcf_path}")
     process = subprocess.run(command, capture_output=True, text=True)
@@ -109,6 +110,7 @@ def index_vcf_file(vcf_path):
         logger.error(f"VCF indexing failed: {process.stderr}")
         raise RuntimeError(f"VCF indexing failed: {process.stderr}")
     logger.info(f"VCF file indexed at {vcf_path}")
+
 
 def run_basevar(fq):
     for chromosome in PARAMETERS["chrs"]:
@@ -128,3 +130,5 @@ def run_basevar(fq):
         logger.info(f"Completed processing for chromosome {chromosome}")
 
     logger.info(f"Completed BaseVar pipeline for {fq}")
+    shutil.rmtree(basevar_outdir(fq))
+    logger.info(f"Temporary directory {basevar_outdir(fq)} deleted.")

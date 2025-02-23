@@ -88,3 +88,11 @@ def get_af_gt_same_false(row, method, truth1, truth2):
     if has_gt(row, method) and row[f"GT_{method}"] != row[f"GT_{truth1}"] and row[f"GT_{method}"] != row[f"GT_{truth2}"]:
         return get_af(row[f"GT_{method}"], row["AF"])
     return -1
+
+def get_af_gt_different(row, truth1, truth2):
+    """
+    AF của kiểu gen method tìm được là khác so với truth1 và truth2
+    """
+    if has_gt(row, truth1) != has_gt(row, truth2) or row[f"GT_{truth1}"] != row[f"GT_{truth2}"]:
+        return 1
+    return 0

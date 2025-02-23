@@ -108,7 +108,7 @@ def run_statistic(fq):
                 all_data.append(df)  # Thêm vào danh sách, chưa merge ngay
 
         if all_data:  # Nếu có dữ liệu, thực hiện gộp và cộng tổng
-            all_df = pd.concat(all_data).groupby("AF", as_index=False).sum()
+            all_df = pd.concat(all_data).groupby("AF (%)", as_index=False).sum()
         else:
             all_df = pd.DataFrame()  # Nếu không có dữ liệu, trả về DataFrame rỗng
 

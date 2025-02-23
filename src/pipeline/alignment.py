@@ -302,7 +302,7 @@ def run_bedtools(fq, sample_id, outdir, final_outdir, bedtools=TOOLS["bedtools"]
 
         # Step 2: Index the compressed BED file
         logger.info("Indexing the compressed BED file with Tabix...")
-        subprocess.run([tabix, "-p", "bed", "-@", f"{PARAMETERS['threads']}", cvg_bed_gz], check=True)
+        subprocess.run([tabix, "-p", "bed", cvg_bed_gz], check=True)
 
         # Create finish flag
         with open(finish_flag, "w") as flag:
