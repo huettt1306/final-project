@@ -1,6 +1,6 @@
 import pandas as pd
 import os
-from helper.file_utils import save_results_to_csv
+from helper.file_utils import save_results_to_csv, extract_vcf
 from helper.path_define import ground_truth_vcf, statistic_variants, statistic_summary, glimpse_vcf, basevar_vcf, samid
 from helper.config import PATHS, PARAMETERS
 from helper.logger import setup_logger
@@ -10,6 +10,10 @@ from statistic.nipt_stats import compare_nipt_variants, calculate_af_nipt_statis
 # Thiết lập logger
 logger = setup_logger(os.path.join(PATHS["logs"], "statistic_pipeline.log"))
 
+def ground_truth_path(sample_name, chromosome):
+    path = ground_truth_vcf(sample_name, chromosome)
+    if not os.path.exist(path):
+        extract_vcf(sample_name, chromosome)
 
 def process_dataframe(df):
     # Chuyển tất cả các cột sang kiểu số, nếu lỗi -> thay bằng 0
@@ -78,14 +82,14 @@ def statistic(fq, chromosome):
         glimpse_path = glimpse_vcf(fq, chromosome)
 
         if "_" not in sample_name:
-            df = compare_single_variants(ground_truth_vcf(sample_name, chromosome), basevar_path, glimpse_path, statistic_variants(fq, chromosome))
+            df = compare_single_variants(ground_truth_path(sample_name, chromosome), basevar_path, glimpse_path, statistic_variants(fq, chromosome))
             return generate_summary_statistics(df, statistic_summary(fq, chromosome))
             
         else:
             child, mom, dad = sample_name.split("_")
-            child_path = ground_truth_vcf(child, chromosome)
-            mother_path = ground_truth_vcf(mom, chromosome)
-            father_path = ground_truth_vcf(dad, chromosome)
+            child_path = ground_truth_path(child, chromosome)
+            mother_path = ground_truth_path(mom, chromosome)
+            father_path = ground_truth_path(dad, chromosome)
 
             df = compare_nipt_variants(child_path, mother_path, father_path, basevar_path, glimpse_path, statistic_variants(fq, chromosome))
             return generate_summary_statistics(df, statistic_summary(fq, chromosome), "nipt")

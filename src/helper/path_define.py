@@ -1,6 +1,5 @@
 import os
 from helper.config import PATHS
-from helper.file_utils import extract_vcf
 
 def cram_path(name):
     return os.path.join(PATHS["cram_directory"], f"{name}.final.cram")
@@ -41,15 +40,12 @@ def basevar_outdir(fq):
 def basevar_vcf(fq, chromosome):
     return os.path.join(f"{basevar_outdir(fq)}_final", f"{samid(fq)}_basevar_{chromosome}.vcf.gz")
 
-def vcf_list_path(fq, chromosome):
-    return os.path.join(basevar_outdir(fq), f"{samid(fq)}_basevar_{chromosome}.vcf.list")
-
 def glimpse_outdir(fq):
     return os.path.join(base_dir(fq), "glimpse_output")
 
 def vcf_prefix(chromosome):
     if(chromosome == "chrX"):
-        return "CCDG_14151_B01_GRM_WGS_2020-08-05_chrX.filtered.eagle2-phased.v2"
+        return "CCDG_14151_B01_GRM_WGS_2020-08-05_chrX.filtered.eagle2-phased.diploid_recal"
     return f"CCDG_14151_B01_GRM_WGS_2020-08-05_{chromosome}.filtered.shapeit2-duohmm-phased"
 
 def get_vcf_path(chromosome):
@@ -80,13 +76,7 @@ def get_vcf_ref(chromosome):
     return os.path.join(PATHS["vcf_directory"], f"20201028_CCDG_14151_B01_GRM_WGS_2020-08-05_{chromosome}.recalibrated_variants.vcf.gz")
 
 def ground_truth_vcf(name, chromosome):
-    path = os.path.join(PATHS["vcf_directory"], f"{name}_{chromosome}.vcf.gz")
-    if os.path.exists(path):
-        print(f"Ground truth VCF already exists: {path}")
-        return path
-    
-    extract_vcf(name, get_vcf_ref(chromosome), path)
-    return path
+    return os.path.join(PATHS["vcf_directory"], f"{name}_{chromosome}.vcf.gz")
 
 def statistic_outdir(fq, chromosome="all"):
     if chromosome == "all":

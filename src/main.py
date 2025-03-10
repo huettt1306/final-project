@@ -53,14 +53,14 @@ def process_trio(trio_name, trio_info):
         logger.info(f"######## PROCESSING index {index} ########")
 
         for coverage in PARAMETERS["coverage"]:
-            #pipeline_for_sample(generate_single_sample(mother_name, coverage, index))
+            pipeline_for_sample(generate_single_sample(mother_name, coverage, index))
 
-            for ff in PARAMETERS["ff"]:
-                pipeline_for_sample(generate_nipt_sample(child_name, mother_name, father_name, coverage, ff, index))
+           # for ff in PARAMETERS["ff"]:
+           #     pipeline_for_sample(generate_nipt_sample(child_name, mother_name, father_name, coverage, ff, index))
 
 
 def main():
-    #run_prepare_reference_panel()
+    run_prepare_reference_panel()
     if len(sys.argv) < 2:
         logger.error("Please provide a trio name to process.")
         sys.exit(1)

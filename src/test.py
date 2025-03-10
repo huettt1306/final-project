@@ -4,14 +4,14 @@ from pipeline.basevar import run_basevar
 from pipeline.glimpse import run_glimpse
 from statistic.statistic import run_statistic
 
-from pipeline.reference_panel_prepare import prepare_reference_panel
-from helper.config import PARAMETERS, TRIO_DATA, PATHS
+from pipeline.reference_panel_prepare import run_prepare_reference_panel
+from helper.config import PARAMETERS, TRIO_DATA, PATHS, TOOLS
 from helper.metrics import get_fastq_coverage
 from helper.logger import setup_logger
-from helper.file_utils import extract_lane1_fq
+from helper.file_utils import extract_lane1_fq, extract_vcf
 from helper.converter import convert_cram_to_fastq
-from helper.path_define import fastq_path, fastq_path_lane1, fastq_path_lane2, cram_path, fastq_single_path, fastq_nipt_path
-import os, sys
+from helper.path_define import ground_truth_vcf, fastq_path_lane1, fastq_path_lane2, cram_path, get_vcf_ref
+import os, sys, subprocess
 from concurrent.futures import ThreadPoolExecutor
 
 
@@ -58,10 +58,43 @@ def process_trio(trio_name, trio_info):
                 pipeline_for_sample(generate_nipt_sample(child_name, mother_name, father_name, coverage, ff, index))
 
 
-def main():
-    sample1 = "/home/huettt/Documents/nipt/NIPT-human-genetics/working/result/sample1/PGT-sample1.fastq.gz"
-    pipeline_for_sample(sample1)
+def main():    
+    run_prepare_reference_panel()
+    if len(sys.argv) < 2:
+        logger.error("Please provide a sample name to process.")
+        sys.exit(1)
+    
+    id = sys.argv[1]
+    sample = f"/home/huettt/Documents/nipt/NIPT-human-genetics/working/result/sample{id}/PGT-sample{id}.fastq.gz"
+    
+    
+    pipeline_for_sample(sample)
 
+def main1():    
+    trios = ["VN047", "VN051", "VN066", "VN078", "VN91"]
+    chromosomes = ["chr20"]
+    
+    for chromosome in chromosomes:
+        vcf_reference = get_vcf_ref(chromosome)
+
+        if not os.path.exists(vcf_reference):
+            url = f"http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/data_collections/1000G_2504_high_coverage/working/20201028_3202_raw_GT_with_annot/20201028_CCDG_14151_B01_GRM_WGS_2020-08-05_{chromosome}.recalibrated_variants.vcf.gz"
+            subprocess.run(["wget", "-c", url, "-P", PATHS["vcf_directory"]], capture_output=True, text=True)
+            
+
+        subprocess.run([TOOLS["tabix"], "-f", vcf_reference], capture_output=True, text=True, check=True)
+        for trio_name in trios:
+            print(f"Processing {trio_name}...")
+            trio_info = TRIO_DATA[trio_name]
+            
+            child_name = trio_info["child"]
+            mother_name = trio_info["mother"]
+            father_name = trio_info["father"]
+
+            with ThreadPoolExecutor(max_workers=3) as executor:
+                executor.map(extract_vcf, [child_name, mother_name, father_name], [chromosome, chromosome, chromosome])
+
+        #os.remove(vcf_reference)
 
 if __name__ == "__main__":
-    main()
+    main1()

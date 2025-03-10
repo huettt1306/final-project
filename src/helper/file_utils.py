@@ -6,7 +6,7 @@ from cyvcf2 import VCF
 from helper.config import PATHS, TOOLS, PARAMETERS
 from helper.logger import setup_logger
 from helper.converter import convert_genotype
-from statistic.ALT import valid_alt
+from helper.path_define import get_vcf_ref, ground_truth_vcf
 
 logger = setup_logger(os.path.join(PATHS["logs"], "file_utils.log"))
 
@@ -76,10 +76,39 @@ def save_results_to_csv(file_path, df):
     logger.info(f"Saved: {file_path}")
 
 
-def extract_vcf(sample_name, vcf_reference, output_vcf_path):
+def create_vcf_list(from_dir, info=None):
+    vcf_list = os.path.join(from_dir, f"{info}.vcf.list")
+    with open(vcf_list, "w") as f:
+        for root, _, files in os.walk(from_dir):
+            for file in files:
+                if file.endswith(".vcf.gz") and (info==None or f"{info}" in file) and (not "all" in file):
+                    f.write(os.path.join(root, file) + "\n")
+    logger.info(f"VCF list saved at {vcf_list}")
+    return vcf_list
+
+def merge_vcf_list(vcf_list, merged_vcf):
+    command = [
+        TOOLS["bcftools"], "concat",
+        "--threads", f"{PARAMETERS['threads']}",
+        "-a", "--rm-dups", "all",
+        "-O", "z",
+        "-o", merged_vcf
+    ] + [line.strip() for line in open(vcf_list)]
+
+    process = subprocess.run(command, capture_output=True, text=True)
+    if process.returncode != 0:
+        logger.error(f"VCF merge failed: {process.stderr}")
+        raise RuntimeError(f"VCF merge failed: {process.stderr}")
+    logger.info(f"Merged VCF file created at {merged_vcf}")
+    return merged_vcf
+
+
+def extract_vcf(sample_name, chromosome):
     """
     Tách mẫu VCF từ file tham chiếu bằng cách sử dụng bcftools.
     """
+    vcf_reference = get_vcf_ref(chromosome)
+    output_vcf_path = ground_truth_vcf(sample_name, chromosome)
 
     # Xây dựng lệnh bcftools
     vcf_command = [

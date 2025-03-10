@@ -5,6 +5,7 @@ from helper.path_define import bamlist_dir, glimpse_outdir, dbsnp_dir, glimpse_a
 from helper.path_define import filtered_vcf_path, filtered_tsv_path, chunks_path, norm_vcf_path, glimpse_vcf
 from helper.logger import setup_logger
 from concurrent.futures import ThreadPoolExecutor
+from helper.file_utils import create_vcf_list, merge_vcf_list
 
 
 # Thiết lập logger
@@ -111,8 +112,8 @@ def phase_genome(fq, chromosome):
             logger.info(f"Phasing chromosome {chromosome}, chunk {chunk_id}")
             process = subprocess.run(command, capture_output=True, text=True)
             if process.returncode != 0:
-                logger.error(f"Error phasing chromosome {chromosome}, chunk {chunk_id}: {process.stderr}")
-                raise RuntimeError(f"Error phasing chromosome {chromosome}, chunk {chunk_id}: {process.stderr}")
+                logger.warning(f"Error phasing chromosome {chromosome}, chunk {chunk_id}: {process.stderr}")
+                continue
 
             bgzip_command = [BGZIP, output_vcf]
             tabix_command = [TABIX, "-f", f"{output_vcf}.gz"]
@@ -168,6 +169,7 @@ def ligate_genome(fq, chromosome):
     subprocess.run(bgzip_command, check=True)
     subprocess.run(tabix_command, check=True)
 
+
 def annotate(fq, chromosome):
     logger.info(f"Annotating genome for chromosome {chromosome}")
     
@@ -193,8 +195,8 @@ def annotate(fq, chromosome):
         subprocess.run(["zgrep", "^[^#].*rs", output], stdout=f, check=True)
     
     # Nén file đã lọc
-    subprocess.run(["bgzip", "-f", filtered_output], check=True)
-    subprocess.run(["tabix", "-p", "vcf", f"{filtered_output}.gz"], check=True)
+    subprocess.run([BGZIP, filtered_output], check=True)
+    subprocess.run([TABIX, "-f", f"{filtered_output}.gz"], check=True)
     
     # Ghi đè file đầu ra bằng file đã lọc
     subprocess.run(["mv", f"{filtered_output}.gz", output], check=True)
@@ -204,7 +206,7 @@ def annotate(fq, chromosome):
 
 
 def run_glimpse_chr(fq, chromosome):
-    print(f"Run glimpse for {fq} {chromosome}")
+    logger.info(f"Run glimpse for {fq} {chromosome}")
 
     if os.path.exists(glimpse_annot(fq, chromosome)):
         logger.info(f"Đã có kết quả glimpse cho mẫu {fq} với {chromosome}")
@@ -247,3 +249,10 @@ def run_glimpse(fq):
     shutil.rmtree(os.path.join(glimpse_outdir(fq), "GL_file_merged"))
     shutil.rmtree(os.path.join(glimpse_outdir(fq), "imputed_file"))
     logger.info(f"Deleted tmp dir for {fq}")
+
+    imputed_list = create_vcf_list(os.path.join(glimpse_outdir(fq), "imputed"), "imputed")
+    merge_vcf_list(imputed_list, os.path.join(glimpse_vcf(fq, "all")))
+
+    annotated_list = create_vcf_list(os.path.join(glimpse_outdir(fq), "annotated"), "annotated")
+    merge_vcf_list(annotated_list, os.path.join(glimpse_annot(fq, "all")))
+    logger.info(f"Created merge vcf for all snp in {fq}")

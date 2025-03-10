@@ -22,7 +22,7 @@ def check_reference_panel(chromosome):
     prefix = vcf_prefix(chromosome)
     required_files = [
         f"{reference_path}/{prefix}.biallelic.snp.maf0.001.vcf.gz",
-        f"{reference_path}/{prefix}.biallelic.snp.maf0.001.vcf.gz.tbi",
+        f"{reference_path}/{prefix}.biallelic.snp.maf0.001.sites.vcf.gz",
         f"{reference_path}/{prefix}.biallelic.snp.maf0.001.sites.tsv.gz",
         f"{reference_path}/{prefix}.chunks.txt"
     ]
@@ -35,7 +35,7 @@ def download_reference_panel(chromosome):
     """
     Download reference panel from 1KGP FTP if not already exists.
     """
-    url = f"http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/data_collections/1000G_2504_high_coverage/working/20201028_3202_phased/CCDG_14151_B01_GRM_WGS_2020-08-05_{chromosome}.filtered.shapeit2-duohmm-phased.vcf.gz"
+    url = f"http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/data_collections/1000G_2504_high_coverage/working/20201028_3202_phased/{vcf_prefix(chromosome)}.vcf.gz"
     vcf_path = get_vcf_path(chromosome)
     index_path = f"{vcf_path}.tbi"
 
@@ -44,6 +44,7 @@ def download_reference_panel(chromosome):
         return vcf_path
 
     logger.info(f"Downloading reference panel for chromosome {chromosome}...")
+
     commands = [
         ["wget", "-c", url, "-P", reference_path],
         ["wget", "-c", f"{url}.tbi", "-P", reference_path]
@@ -63,6 +64,7 @@ def normalize_and_filter_reference(chromosome):
     Normalize and filter the reference panel.
     """
     vcf_path = get_vcf_path(chromosome)
+    print(vcf_path)
     output_vcf = norm_vcf_path(chromosome)
 
     if os.path.exists(output_vcf) and os.path.exists(f"{output_vcf}.tbi"):
@@ -162,7 +164,7 @@ def prepare_gatk_bundle():
     dbsnp = dbsnp_dir()
 
     if not os.path.exists(dbsnp):
-        print(f"{dbsnp} not found. Compressing {dbsnp}...")
+        logger.info(f"{dbsnp} not found. Compressing {dbsnp}...")
         
         # Sử dụng bgzip để nén tệp .vcf thành .vcf.gz
         bgzip_cmd = [TOOLS['bgzip'], dbsnp]
@@ -172,26 +174,32 @@ def prepare_gatk_bundle():
         tabix_cmd = [TOOLS['tabix'], "-f", f"{dbsnp}.gz"]
         subprocess.run(tabix_cmd, check=True)
         
-        print(f"{dbsnp} has been compressed and indexed.")
+        logger.info(f"{dbsnp} has been compressed and indexed.")
     else:
-        print(f"{dbsnp} already exists. No action needed.")
+        logger.info(f"{dbsnp} already exists. No action needed.")
 
 
 def prepare_reference_panel(chromosome):
     """
     Thực hiện các bước chuẩn bị reference panel cho một chromosome.
     """
+    logger.info(f"Preparing {chromosome}")
     os.makedirs(reference_path, exist_ok=True)
+    print(chromosome)
 
     if check_reference_panel(chromosome):
         logger.info(f"Reference panel for {chromosome} already exists. Skipping.")
         return
+    
+    print(f"#{chromosome}")
 
     # Step 1: Download reference panel
     download_reference_panel(chromosome)
 
     # Step 2: Normalize and filter reference panel
     normalize_and_filter_reference(chromosome)
+
+    print(f"##{chromosome}")
 
     # Step 3: Process SNP sites
     process_snp_sites(chromosome)
@@ -207,7 +215,10 @@ def run_prepare_reference_panel():
     Thực hiện toàn bộ quy trình chuẩn bị reference panel cho các chromosome.
     """
     # Step 0: verify gatk bundle
+    logger.info("Preparing reference....")
     prepare_gatk_bundle()
 
-    with ThreadPoolExecutor(max_workers=25) as executor:  # Giới hạn 24 luồng song song
+    with ThreadPoolExecutor(max_workers=1) as executor:  # Giới hạn 24 luồng song song
         executor.map(prepare_reference_panel, PARAMETERS["chrs"])
+
+    return

@@ -33,6 +33,7 @@ def get_af_alt(row, method):
     return -1
 
 
+
 def get_af_alt_not_given(row, method, compare_with):
     """
     AF của alt có trong method nhưng không có thông tin trong compare_with
