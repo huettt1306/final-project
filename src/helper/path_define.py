@@ -31,6 +31,9 @@ def tmp_outdir(fq):
 def batch1_final_outdir(fq):
     return os.path.join(base_dir(fq), "batch1_final_files")
 
+def bam_dir(fq):
+    return os.path.join(batch1_final_outdir(fq), f"{samid(fq)}.sorted.rmdup.realign.BQSR.bam")
+
 def bamlist_dir(fq):
     return os.path.join(batch1_final_outdir(fq), "bam.list")
 

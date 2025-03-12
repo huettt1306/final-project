@@ -7,7 +7,6 @@ from helper.logger import setup_logger
 from concurrent.futures import ThreadPoolExecutor
 from helper.file_utils import create_vcf_list, merge_vcf_list
 
-# Thiết lập logger
 logger = setup_logger(os.path.join(PATHS["logs"], "basevar_pipeline.log"))
 
 
@@ -43,80 +42,71 @@ def run_basevar_step(fq, chromosome):
             end = min(i + DELTA, reg_end)
             region = f"{chr_id}:{start}-{end}"
             outfile_prefix = f"{chr_id}_{start}_{end}"
+            log_file = f"{outdir}/{outfile_prefix}.log"
 
             logger.info(f"Starting BaseVar for {fq} region {region}")
-            
-            command = [
-                TOOLS['basevar'], "basetype",
-                "-t", f"{PARAMETERS['threads']}",
-                "-R", REF,
-                "-L", bamlist_path,
-                "-r", region,
-                "--min-af=0.001",
-                "--output-vcf", f"{outdir}/{outfile_prefix}.vcf.gz",
-                "--output-cvg", f"{outdir}/{outfile_prefix}.cvg.tsv.gz",
-                "--smart-rerun"
-            ]
 
-            log_file = f"{outdir}/{outfile_prefix}.log"
             try:
                 with open(log_file, "w") as log:
-                    subprocess.run(command, stdout=log, stderr=subprocess.STDOUT, check=True)
+                    subprocess.run([TOOLS['basevar'], "basetype",
+                        "-R", REF,
+                        "-L", bamlist_path,
+                        "-r", region,
+                        "--min-af=0.001",
+                        "--output-vcf", f"{outdir}/{outfile_prefix}.vcf.gz",
+                        "--output-cvg", f"{outdir}/{outfile_prefix}.cvg.tsv.gz",
+                        "--smart-rerun"
+                    ], stdout=log, stderr=subprocess.STDOUT, check=True)
                     logger.info(f"Done BaseVar for region {region}")
-            except subprocess.CalledProcessError as e:
-                logger.error(f"BaseVar failed for region {region} with error: {e}")
-                continue  # B? qua l?i và ti?p t?c pipeline
+
             except Exception as e:
                 logger.error(f"Unexpected error occurred for region {region}: {e}")
-                continue  # B? qua l?i và ti?p t?c pipeline
+                continue    
 
 
 def merge_vcf_files(fq, chromosome):
     logger.info(f"Creating vcf_list for {fq} {chromosome}")
-    vcf_list = create_vcf_list(basevar_outdir(fq), f"{chromosome}_")
+    vcf_list = create_vcf_list(basevar_outdir(fq), f"{chromosome}")
+    merged_vcf = basevar_vcf(fq, chromosome)
 
     logger.info(f"Merging vcf_list for {fq} {chromosome}")
-    merged_vcf = basevar_vcf(fq, chromosome)
     merge_vcf_list(vcf_list, merged_vcf)
 
-    return merged_vcf
-
-def index_vcf_file(vcf_path):
-    command = [TABIX, "-f", "-p", "vcf", vcf_path]
-
-    logger.info(f"Indexing VCF file {vcf_path}")
-    process = subprocess.run(command, capture_output=True, text=True)
-    if process.returncode != 0:
-        logger.error(f"VCF indexing failed: {process.stderr}")
-        raise RuntimeError(f"VCF indexing failed: {process.stderr}")
-    logger.info(f"VCF file indexed at {vcf_path}")
+    logger.info(f"Indexing VCF file {merged_vcf}")
+    subprocess.run([TABIX, "-f", merged_vcf], check=True)
 
 
 def run_basevar_chr(fq, chromosome): 
-    logger.info(f"Run basevar for {fq} {chromosome}")
-    if os.path.exists(basevar_vcf(fq, chromosome)):
-        logger.info(f"Đã có kết quả basevar cho mẫu {fq} với {chromosome}.")
+    finish_flag = os.path.join(f"{basevar_outdir(fq)}_final", f"basevar_{chromosome}.finish")
+
+    # Step 0: Verify the flag
+    if os.path.exists(finish_flag):
+        logger.info(f"Basevar result for {chromosome} {samid(fq)} already exist. Skip basevar for {chromosome}...")
         return
+
+    logger.info(f"Run basevar for {fq} {chromosome}")
 
     # Step 1: Run BaseVar for the chromosome
     run_basevar_step(fq, chromosome)
 
     # Step 2: Merge VCF files for the chromosome
-    merged_vcf = merge_vcf_files(fq, chromosome)
+    merge_vcf_files(fq, chromosome)
 
-    # Step 3: Index the merged VCF file
-    index_vcf_file(merged_vcf)
-
-    logger.info(f"Completed processing for {fq} chromosome {chromosome}")
+    # Create finish flag
+    with open(finish_flag, "w") as flag:
+        flag.write(f"Completed BaseVar for {fq} {chromosome}.")
+    logger.info(f"Completed BaseVar for {fq} chromosome {chromosome}")
 
 
 def run_basevar(fq):
     os.makedirs(f"{basevar_outdir(fq)}_final",exist_ok=True)
     os.makedirs(f"{basevar_outdir(fq)}",exist_ok=True)
 
-    with ThreadPoolExecutor(max_workers=PARAMETERS["threads"]) as executor:
+    with ThreadPoolExecutor(max_workers=PARAMETERS['threads']) as executor:
         executor.map(lambda chr: run_basevar_chr(fq, chr), PARAMETERS["chrs"])
 
-    logger.info(f"Completed BaseVar pipeline for {fq}")
-    #shutil.rmtree(basevar_outdir(fq))
+    shutil.rmtree(basevar_outdir(fq))
     logger.info(f"Temporary directory {basevar_outdir(fq)} deleted.")
+
+    logger.info(f"Completed BaseVar pipeline for {fq}.")
+

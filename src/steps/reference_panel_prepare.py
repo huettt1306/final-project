@@ -5,7 +5,6 @@ from helper.path_define import vcf_prefix, get_vcf_path, filtered_tsv_path, filt
 from helper.logger import setup_logger
 from concurrent.futures import ThreadPoolExecutor
 
-# Thiết lập logger
 logger = setup_logger(os.path.join(PATHS["logs"], "reference_panel_pipeline.log"))
 
 
@@ -16,9 +15,6 @@ GLIMPSE_CHUNK = TOOLS["GLIMPSE_chunk"]
 reference_path = PATHS["reference_path"]
 
 def check_reference_panel(chromosome):
-    """
-    Kiểm tra dữ liệu reference panel đã tồn tại hay chưa.
-    """
     prefix = vcf_prefix(chromosome)
     required_files = [
         f"{reference_path}/{prefix}.biallelic.snp.maf0.001.vcf.gz",
@@ -32,9 +28,6 @@ def check_reference_panel(chromosome):
     return True
 
 def download_reference_panel(chromosome):
-    """
-    Download reference panel from 1KGP FTP if not already exists.
-    """
     url = f"http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/data_collections/1000G_2504_high_coverage/working/20201028_3202_phased/{vcf_prefix(chromosome)}.vcf.gz"
     vcf_path = get_vcf_path(chromosome)
     index_path = f"{vcf_path}.tbi"
@@ -60,9 +53,6 @@ def download_reference_panel(chromosome):
     return vcf_path
 
 def normalize_and_filter_reference(chromosome):
-    """
-    Normalize and filter the reference panel.
-    """
     vcf_path = get_vcf_path(chromosome)
     print(vcf_path)
     output_vcf = norm_vcf_path(chromosome)
@@ -91,9 +81,6 @@ def normalize_and_filter_reference(chromosome):
     return output_vcf
 
 def process_snp_sites(chromosome):
-    """
-    Process SNP sites.
-    """
     vcf_path = norm_vcf_path(chromosome)
     filtered_vcf = filtered_vcf_path(chromosome)
     tsv_output = filtered_tsv_path(chromosome)
@@ -108,36 +95,28 @@ def process_snp_sites(chromosome):
         [BCFTOOLS, "index", "-f", filtered_vcf],
     ]
 
-    # Chạy các lệnh bcftools view và index
     for command in commands:
         process = subprocess.run(command, check=True)
         if process.returncode != 0:
             logger.error(f"Error processing SNP sites: {process.stderr}")
             raise RuntimeError(f"Error processing SNP sites: {process.stderr}")
 
-    # Chạy bcftools query và bgzip
     logger.info(f"Running bcftools query and bgzip for chromosome {chromosome}...")
     with open(tsv_output, "wb") as output_file:
         query_command = [BCFTOOLS, "query", "-f", "%CHROM\\t%POS\\t%REF,%ALT\\n", filtered_vcf]
-        bgzip_command = [BGZIP, "-c"]
         query_process = subprocess.Popen(query_command, stdout=subprocess.PIPE)
-        subprocess.run(bgzip_command, stdin=query_process.stdout, stdout=output_file, check=True)
+        subprocess.run([BGZIP, "-c"], stdin=query_process.stdout, stdout=output_file, check=True)
         query_process.stdout.close()
         query_process.wait()
 
-    # Chạy tabix để tạo index cho tsv_output
     logger.info(f"Running tabix for chromosome {chromosome}...")
-    tabix_command = [TABIX, "-s1", "-b2", "-e2", tsv_output]
-    subprocess.run(tabix_command, check=True)
+    subprocess.run([TABIX, "-s1", "-b2", "-e2", tsv_output], check=True)
 
     logger.info(f"Processed SNP sites for chromosome {chromosome}.")
     return filtered_vcf, tsv_output
 
 
 def chunk_reference_genome(chromosome):
-    """
-    Chunk the reference genome.
-    """
     vcf_path = get_vcf_path(chromosome)
     chunks_output = chunks_path(chromosome)
 
@@ -146,16 +125,13 @@ def chunk_reference_genome(chromosome):
         return chunks_output
 
     logger.info(f"Chunking reference genome for chromosome {chromosome}...")
-    command = [
-        GLIMPSE_CHUNK, "--input", vcf_path, "--region", chromosome,
+
+    subprocess.run([GLIMPSE_CHUNK, 
+        "--input", vcf_path, "--region", chromosome,
         "--window-mb", "2", "--buffer-mb", "0.2",
         "--output", chunks_output, "--sequential"
-    ]
+    ], capture_output=True, text=True, check=True)
 
-    process = subprocess.run(command, capture_output=True, text=True)
-    if process.returncode != 0:
-        logger.error(f"Error chunking reference genome: {process.stderr}")
-        raise RuntimeError(f"Error chunking reference genome: {process.stderr}")
 
     logger.info(f"Chunk file created at {chunks_output}.")
     return chunks_output
@@ -166,13 +142,8 @@ def prepare_gatk_bundle():
     if not os.path.exists(dbsnp):
         logger.info(f"{dbsnp} not found. Compressing {dbsnp}...")
         
-        # Sử dụng bgzip để nén tệp .vcf thành .vcf.gz
-        bgzip_cmd = [TOOLS['bgzip'], dbsnp]
-        subprocess.run(bgzip_cmd, check=True)
-        
-        # Lập chỉ mục tệp .vcf.gz bằng tabix
-        tabix_cmd = [TOOLS['tabix'], "-f", f"{dbsnp}.gz"]
-        subprocess.run(tabix_cmd, check=True)
+        subprocess.run([TOOLS['bgzip'], dbsnp], check=True)
+        subprocess.run([TOOLS['tabix'], "-f", f"{dbsnp}.gz"], check=True)
         
         logger.info(f"{dbsnp} has been compressed and indexed.")
     else:
@@ -180,19 +151,13 @@ def prepare_gatk_bundle():
 
 
 def prepare_reference_panel(chromosome):
-    """
-    Thực hiện các bước chuẩn bị reference panel cho một chromosome.
-    """
     logger.info(f"Preparing {chromosome}")
     os.makedirs(reference_path, exist_ok=True)
-    print(chromosome)
 
     if check_reference_panel(chromosome):
         logger.info(f"Reference panel for {chromosome} already exists. Skipping.")
         return
     
-    print(f"#{chromosome}")
-
     # Step 1: Download reference panel
     download_reference_panel(chromosome)
 
@@ -211,14 +176,9 @@ def prepare_reference_panel(chromosome):
 
 
 def run_prepare_reference_panel():
-    """
-    Thực hiện toàn bộ quy trình chuẩn bị reference panel cho các chromosome.
-    """
     # Step 0: verify gatk bundle
     logger.info("Preparing reference....")
     prepare_gatk_bundle()
 
-    with ThreadPoolExecutor(max_workers=1) as executor:  # Giới hạn 24 luồng song song
+    with ThreadPoolExecutor(max_workers=1) as executor:  
         executor.map(prepare_reference_panel, PARAMETERS["chrs"])
-
-    return

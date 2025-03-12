@@ -1,10 +1,10 @@
-from pipeline.generate import generate_single_sample, generate_nipt_sample
-from pipeline.alignment import run_alignment_pipeline
-from pipeline.basevar import run_basevar
-from pipeline.glimpse import run_glimpse
+from helper.generate import generate_single_sample, generate_nipt_sample
+from steps.alignment import run_alignment_pipeline
+from steps.basevar import run_basevar
+from steps.glimpse import run_glimpse
 from statistic.statistic import run_statistic
 
-from pipeline.reference_panel_prepare import run_prepare_reference_panel
+from steps.reference_panel_prepare import run_prepare_reference_panel
 from helper.config import PARAMETERS, TRIO_DATA, PATHS
 from helper.metrics import get_fastq_coverage
 from helper.logger import setup_logger
@@ -23,7 +23,7 @@ def pipeline_for_sample(fastq_dir):
     run_alignment_pipeline(fastq_dir)
     run_basevar(fastq_dir)
     run_glimpse(fastq_dir)
-    run_statistic(fastq_dir)
+    #run_statistic(fastq_dir)
 
 def prepare_data(name):
     print(f"Preparing data for {name}")
@@ -55,12 +55,12 @@ def process_trio(trio_name, trio_info):
         for coverage in PARAMETERS["coverage"]:
             pipeline_for_sample(generate_single_sample(mother_name, coverage, index))
 
-           # for ff in PARAMETERS["ff"]:
-           #     pipeline_for_sample(generate_nipt_sample(child_name, mother_name, father_name, coverage, ff, index))
+            for ff in PARAMETERS["ff"]:
+                pipeline_for_sample(generate_nipt_sample(child_name, mother_name, father_name, coverage, ff, index))
 
 
 def main():
-    run_prepare_reference_panel()
+    #run_prepare_reference_panel()
     if len(sys.argv) < 2:
         logger.error("Please provide a trio name to process.")
         sys.exit(1)

@@ -11,9 +11,6 @@ from helper.path_define import get_vcf_ref, ground_truth_vcf
 logger = setup_logger(os.path.join(PATHS["logs"], "file_utils.log"))
 
 def extract_lane1_fq(fq_path, r1_path):
-    """
-    Sử dụng seqtk để lấy mẫu dữ liệu từ file FASTQ theo tỷ lệ nhất định.
-    """
     logger.info(f"Extracting land 1 for {fq_path}...")
     if os.path.exists(r1_path):
         logger.info("Land 1 fastq already exists.")
@@ -28,9 +25,6 @@ def extract_lane1_fq(fq_path, r1_path):
 
 
 def filter_with_seqtk(input_file, output_file, fraction):
-    """
-    Sử dụng seqtk để lấy mẫu dữ liệu từ file FASTQ theo tỷ lệ nhất định.
-    """
     logger.info(f"Filtering with seqtk sample {input_file} with fraction {fraction}....")
     print(f"Filtering with seqtk sample {input_file} with fraction {fraction}....")
     if not os.path.exists(input_file):
@@ -43,6 +37,7 @@ def filter_with_seqtk(input_file, output_file, fraction):
     subprocess.run(cmd, shell=True, check=True)
     logger.info(f"Filter {input_file} done.")
     return output_file
+
 
 def filter_and_trim_with_seqtk(input_file, output_file, num_reads, max_length=PARAMETERS["read_length"]):
     logger.info(f"Filtering {num_reads} reads from {input_file} and trimming to {max_length}bp...")
@@ -69,8 +64,7 @@ def filter_and_trim_with_seqtk(input_file, output_file, num_reads, max_length=PA
 
 
 def save_results_to_csv(file_path, df):
-    # Save the dataframe to the specified file path
-    os.makedirs(os.path.dirname(file_path), exist_ok=True)  # Tạo thư mục nếu chưa tồn tại
+    os.makedirs(os.path.dirname(file_path), exist_ok=True) 
 
     df.to_csv(file_path, index=False)
     logger.info(f"Saved: {file_path}")
@@ -85,6 +79,7 @@ def create_vcf_list(from_dir, info=None):
                     f.write(os.path.join(root, file) + "\n")
     logger.info(f"VCF list saved at {vcf_list}")
     return vcf_list
+
 
 def merge_vcf_list(vcf_list, merged_vcf):
     command = [
@@ -104,9 +99,6 @@ def merge_vcf_list(vcf_list, merged_vcf):
 
 
 def extract_vcf(sample_name, chromosome):
-    """
-    Tách mẫu VCF từ file tham chiếu bằng cách sử dụng bcftools.
-    """
     vcf_reference = get_vcf_ref(chromosome)
     output_vcf_path = ground_truth_vcf(sample_name, chromosome)
 
@@ -129,10 +121,8 @@ def extract_vcf(sample_name, chromosome):
         logger.error(f"Error extracting VCF: {e}")
         raise
 
+
 def process_vcf(vcf_path, method_name="Test"):
-    """
-    Đọc VCF và trích xuất thông tin cần thiết.
-    """
     variants = []
     try:
         logger.info(f"Processing VCF file: {vcf_path} for method {method_name}")
