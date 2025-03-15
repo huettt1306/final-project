@@ -78,22 +78,17 @@ def glimpse_annot(fq, chromosome):
 def get_vcf_ref(chromosome):
     return os.path.join(PATHS["vcf_directory"], f"20201028_CCDG_14151_B01_GRM_WGS_2020-08-05_{chromosome}.recalibrated_variants.vcf.gz")
 
-def ground_truth_vcf(name, chromosome):
-    return os.path.join(PATHS["vcf_directory"], f"{name}_{chromosome}.vcf.gz")
+def ground_truth_vcf(chromosome):
+    return os.path.join(PATHS["vcf_directory"], f"{chromosome}_variants.vcf.gz")
 
-def statistic_outdir(fq, chromosome="all"):
-    if chromosome == "all":
-        return os.path.join(base_dir(fq), "statistic_output")
-    return os.path.join(base_dir(fq), "statistic_output", f"{chromosome}")
+def statistic_outdir(fq):
+    return os.path.join(base_dir(fq), "statistic_output")
 
 def statistic_variants(fq, chromosome="all"):
-    return os.path.join(statistic_outdir(fq, chromosome), f"{samid(fq)}_variants.csv")
+    return os.path.join(statistic_outdir(fq), f"{samid(fq)}_{chromosome}_variants.csv")
 
 def statistic_summary(fq, chromosome="all"):
-    return os.path.join(statistic_outdir(fq, chromosome), f"{samid(fq)}_summary.csv")
-    
-def statistic_rare_summary(fq, chromosome="all"):
-    return os.path.join(statistic_outdir(fq, chromosome), "rare_summary.csv")
+    return os.path.join(statistic_outdir(fq), f"{samid(fq)}_{chromosome}_summary.csv")
     
 def dbsnp_dir():
     return os.path.join(PATHS["gatk_bundle_dir"], "Homo_sapiens_assembly38.dbsnp138.vcf.gz")

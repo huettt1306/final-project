@@ -20,10 +20,10 @@ logger = setup_logger(os.path.join(PATHS["logs"], "main.log"))
 
 def pipeline_for_sample(fastq_dir):
     logger.info(f"Run all pipeline for sample in {fastq_dir}")
-    run_alignment_pipeline(fastq_dir)
-    run_basevar(fastq_dir)
-    run_glimpse(fastq_dir)
-    #run_statistic(fastq_dir)
+    #run_alignment_pipeline(fastq_dir)
+    #run_basevar(fastq_dir)
+    #run_glimpse(fastq_dir)
+    run_statistic(fastq_dir)
 
 def prepare_data(name):
     print(f"Preparing data for {name}")
@@ -53,7 +53,7 @@ def process_trio(trio_name, trio_info):
         logger.info(f"######## PROCESSING index {index} ########")
 
         for coverage in PARAMETERS["coverage"]:
-            pipeline_for_sample(generate_single_sample(mother_name, coverage, index))
+#            pipeline_for_sample(generate_single_sample(mother_name, coverage, index))
 
             for ff in PARAMETERS["ff"]:
                 pipeline_for_sample(generate_nipt_sample(child_name, mother_name, father_name, coverage, ff, index))

@@ -122,20 +122,25 @@ def extract_vcf(sample_name, chromosome):
         raise
 
 
-def process_vcf(vcf_path, method_name="Test"):
+def process_vcf(vcf_path, method="Test", sample=None):
     variants = []
     try:
-        logger.info(f"Processing VCF file: {vcf_path} for method {method_name}")
+        logger.info(f"Processing VCF file: {vcf_path} for method {method}")
         vcf_reader = VCF(vcf_path)
+
+        sample_index = 0 
+        if sample is not None:
+            sample_index = vcf_reader.samples.index(sample)
+
         for record in vcf_reader:
             variants.append({
                 "CHROM": record.CHROM,
                 "POS": record.POS,
                 "REF": record.REF,
                 "ALT": record.ALT[0],
-                f"AF_{method_name}": dict(record.INFO).get('AF', -1),
-                f"GT_{method_name}": convert_genotype(record.genotypes[0]),
-                method_name: True
+                f"AF_{method}": dict(record.INFO).get('AF', -1),
+                f"GT_{method}": convert_genotype(record.genotypes[sample_index]),
+                method: True
             })
 
     except Exception as e:

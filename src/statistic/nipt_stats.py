@@ -2,65 +2,40 @@ import pandas as pd
 import os
 from statistic.GT import get_af_gt, get_af_gt_true, get_af_gt_false, get_af_gt_not_given, get_af_gt_priv_true, get_af_gt_same_true, get_af_gt_same_false
 from statistic.ALT import get_af_alt, get_af_alt_true, get_af_alt_false, get_af_alt_not_given, get_af_alt_priv_true, get_af_alt_same_true, get_af_alt_same_false
-from helper.file_utils import save_results_to_csv, process_vcf
-from helper.config import PATHS, PARAMETERS
+from helper.config import PATHS
 from helper.logger import setup_logger
 
 # Thiết lập logger
 logger = setup_logger(os.path.join(PATHS["logs"], "nipt_statistic_pipeline.log"))
 
 
-def compare_nipt_variants(child_path, mother_path, father_path, basevar_path, glimpse_path, output_file):
-    """
-    So sánh biến thể giữa các phương pháp và lưu kết quả ra file CSV.
-    """
-    logger.info(f"Comparing variants for paths: {basevar_path}, {glimpse_path}")
+def compare_nipt_variants(child_df, mother_df, father_df, basevar_df, glimpse_df):
+    logger.info(f"Comparing nipt variants...")
 
-    try:
-        if os.path.exists(output_file):
-            logger.info(f"Output file {output_file} already exists. Loading existing results.")
-            merged_df = pd.read_csv(output_file)
-            return merged_df
+    merged_df = pd.merge(glimpse_df, basevar_df, on=["CHROM", "POS", "REF", "ALT"], how="outer")
+    merged_df = pd.merge(child_df, merged_df, on=["CHROM", "POS", "REF", "ALT"], how="outer")
+    merged_df = pd.merge(mother_df, merged_df, on=["CHROM", "POS", "REF", "ALT"], how="outer")
+    merged_df = pd.merge(father_df, merged_df, on=["CHROM", "POS", "REF", "ALT"], how="outer")
         
-        child_df = process_vcf(child_path, "Child")
-        mother_df = process_vcf(mother_path, "Mother")
-        father_df = process_vcf(father_path, "Father")
-        basevar_df = process_vcf(basevar_path, "BaseVar")
-        glimpse_df = process_vcf(glimpse_path, "Glimpse")
-
-        merged_df = pd.merge(glimpse_df, basevar_df, on=["CHROM", "POS", "REF", "ALT"], how="outer")
-        merged_df = pd.merge(child_df, merged_df, on=["CHROM", "POS", "REF", "ALT"], how="outer")
-        merged_df = pd.merge(mother_df, merged_df, on=["CHROM", "POS", "REF", "ALT"], how="outer")
-        merged_df = pd.merge(father_df, merged_df, on=["CHROM", "POS", "REF", "ALT"], how="outer")
+    merged_df['AF'] = merged_df['AF_Mother'].combine_first(merged_df['AF_Father'])
+    merged_df.drop(columns=['AF_BaseVar'], inplace=True)
+    merged_df.drop(columns=['AF_Glimpse'], inplace=True)
+    merged_df.drop(columns=['AF_Mother'], inplace=True)
+    merged_df.drop(columns=['AF_Father'], inplace=True)
+    merged_df.drop(columns=['AF_Child'], inplace=True)
         
-        merged_df['AF'] = merged_df['AF_Mother'].combine_first(merged_df['AF_Father'])
-        merged_df.drop(columns=['AF_BaseVar'], inplace=True)
-        merged_df.drop(columns=['AF_Glimpse'], inplace=True)
-        merged_df.drop(columns=['AF_Mother'], inplace=True)
-        merged_df.drop(columns=['AF_Father'], inplace=True)
-        merged_df.drop(columns=['AF_Child'], inplace=True)
-        
-        merged_df["AF"].fillna(-1.0, inplace=True)
-        merged_df.fillna(False, inplace=True)
+    merged_df["AF"].fillna(-1.0, inplace=True)
+    merged_df.fillna(False, inplace=True)
 
-        save_results_to_csv(output_file, merged_df)
-        logger.info(f"Detailed variant comparison and summary statistics saved to {output_file}")
-
-        return merged_df
-    except Exception as e:
-        logger.error(f"Error comparing variants: {e}")
-        raise
+    logger.info(f"Finished compare nipt variants.")
+    return merged_df
 
 
 def update_stats(stats, af, field):
-    """
-    Kiểm tra xem af đã có trong stats chưa, nếu chưa thì thêm mới, nếu có thì cập nhật trường 'field'.
-    """
     if af < 0:
         return stats
     
     if af not in stats:
-        # Nếu chưa có, khởi tạo thống kê cho af
         stats[af] = {
             "GT Child": 0,
             "GT Mother": 0,
