@@ -1,7 +1,7 @@
 import pandas as pd
 import os
-from statistic.GT import get_af_gt, get_af_gt_true, get_af_gt_false, get_af_gt_not_given
-from statistic.ALT import get_af_alt, get_af_alt_true, get_af_alt_false, get_af_alt_not_given
+from statistics.GT import get_af_gt, get_af_gt_true, get_af_gt_false, get_af_gt_not_given
+from statistics.ALT import get_af_alt, get_af_alt_true, get_af_alt_false, get_af_alt_not_given
 from helper.config import PATHS
 from helper.logger import setup_logger
 
@@ -27,9 +27,6 @@ def compare_single_variants(ground_truth_df, basevar_df, glimpse_df):
     
 
 def update_stats(stats, af, field):
-    """
-    Kiểm tra xem af đã có trong stats chưa, nếu chưa thì thêm mới, nếu có thì cập nhật trường 'field'.
-    """
     if af < 0:
         return stats
     
@@ -49,16 +46,11 @@ def update_stats(stats, af, field):
             "ALT Truth not found": 0,
         }
 
-    # Cập nhật giá trị của trường 'field'
     stats[af][field] += 1
     return stats
 
 
 def calculate_af_single_statistics(df):
-    """
-    Tính toán thống kê cho từng giá trị AF và trả về dưới dạng dictionary.
-    Mỗi entry trong dictionary sẽ chứa các thống kê cho một giá trị AF.
-    """
     stats = {}
 
     for _, row in df.iterrows():

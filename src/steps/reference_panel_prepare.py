@@ -54,7 +54,6 @@ def download_reference_panel(chromosome):
 
 def normalize_and_filter_reference(chromosome):
     vcf_path = get_vcf_path(chromosome)
-    print(vcf_path)
     output_vcf = norm_vcf_path(chromosome)
 
     if os.path.exists(output_vcf) and os.path.exists(f"{output_vcf}.tbi"):
@@ -163,8 +162,6 @@ def prepare_reference_panel(chromosome):
 
     # Step 2: Normalize and filter reference panel
     normalize_and_filter_reference(chromosome)
-
-    print(f"##{chromosome}")
 
     # Step 3: Process SNP sites
     process_snp_sites(chromosome)

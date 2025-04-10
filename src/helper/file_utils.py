@@ -66,7 +66,7 @@ def filter_and_trim_with_seqtk(input_file, output_file, num_reads, max_length=PA
 def save_results_to_csv(file_path, df):
     os.makedirs(os.path.dirname(file_path), exist_ok=True) 
 
-    df.to_csv(file_path, index=False)
+    df.to_csv(file_path, index=True)
     logger.info(f"Saved: {file_path}")
 
 

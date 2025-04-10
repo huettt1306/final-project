@@ -217,9 +217,9 @@ def run_glimpse(fq):
     with ThreadPoolExecutor(max_workers=PARAMETERS['threads']) as executor:
         executor.map(lambda chr: run_glimpse_chr(fq, chr), PARAMETERS["chrs"])
     
-    shutil.rmtree(os.path.join(glimpse_outdir(fq), "GL_file"))
-    shutil.rmtree(os.path.join(glimpse_outdir(fq), "GL_file_merged"))
-    shutil.rmtree(os.path.join(glimpse_outdir(fq), "imputed_file"))
+    #shutil.rmtree(os.path.join(glimpse_outdir(fq), "GL_file"))
+    #shutil.rmtree(os.path.join(glimpse_outdir(fq), "GL_file_merged"))
+    #shutil.rmtree(os.path.join(glimpse_outdir(fq), "imputed_file"))
     logger.info(f"Deleted tmp dir for {fq}")
 
     imputed_list = create_vcf_list(os.path.join(glimpse_outdir(fq), "imputed"), "imputed")

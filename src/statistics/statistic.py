@@ -4,8 +4,8 @@ from helper.file_utils import save_results_to_csv, process_vcf
 from helper.path_define import ground_truth_vcf, statistic_summary, glimpse_vcf, basevar_vcf, samid
 from helper.config import PATHS, PARAMETERS
 from helper.logger import setup_logger
-from statistic.single_stats import compare_single_variants, calculate_af_single_statistics
-from statistic.nipt_stats import compare_nipt_variants, calculate_af_nipt_statistics
+from statistics.single_stats import compare_single_variants, calculate_af_single_statistics
+from statistics.nipt_stats import compare_nipt_variants, calculate_af_nipt_statistics
 
 logger = setup_logger(os.path.join(PATHS["logs"], "statistic_pipeline.log"))
 
@@ -21,9 +21,6 @@ def process_dataframe(df):
 
 
 def generate_summary_statistics(df, output_file, type="single"):
-    """
-    Tạo thống kê cho toàn bộ DataFrame theo từng AF.
-    """
     try:
         logger.info("Generating summary statistics....")
 

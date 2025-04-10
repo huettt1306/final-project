@@ -233,7 +233,7 @@ def move_final_output(fq, tmp_dir, final_dir):
 
     # Step 2: Remove the temporary output directory
     logger.info("Removing temporary output directory...")
-    shutil.rmtree(tmp_dir)
+    #shutil.rmtree(tmp_dir)
     logger.info(f"Temporary directory {tmp_dir} deleted.")
 
 

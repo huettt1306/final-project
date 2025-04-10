@@ -5,7 +5,6 @@ from statistic.ALT import get_af_alt, get_af_alt_true, get_af_alt_false, get_af_
 from helper.config import PATHS
 from helper.logger import setup_logger
 
-# Thiết lập logger
 logger = setup_logger(os.path.join(PATHS["logs"], "nipt_statistic_pipeline.log"))
 
 
@@ -85,7 +84,6 @@ def update_stats(stats, af, field):
             "ALT Glimpse diff from Child and Mother": 0,
         }
 
-    # Cập nhật giá trị của trường 'field'
     stats[af][field] += 1
     return stats
 
@@ -96,7 +94,6 @@ def calculate_af_nipt_statistics(df):
     """
     stats = {}
 
-    # Duyệt qua từng dòng trong DataFrame df
     for _, row in df.iterrows():
         stats = update_stats(stats, get_af_gt(row, "Child"), "GT Child")
         stats = update_stats(stats, get_af_gt(row, "Mother"), "GT Mother")

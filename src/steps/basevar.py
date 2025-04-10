@@ -105,7 +105,7 @@ def run_basevar(fq):
     with ThreadPoolExecutor(max_workers=PARAMETERS['threads']) as executor:
         executor.map(lambda chr: run_basevar_chr(fq, chr), PARAMETERS["chrs"])
 
-    shutil.rmtree(basevar_outdir(fq))
+    #shutil.rmtree(basevar_outdir(fq))
     logger.info(f"Temporary directory {basevar_outdir(fq)} deleted.")
 
     logger.info(f"Completed BaseVar pipeline for {fq}.")
