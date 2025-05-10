@@ -37,17 +37,35 @@ def compute_gls(fq, chromosome):
         name = os.path.basename(line).split(".")[0]
         output_vcf = os.path.join(glpath, f"{name}.{chromosome}.vcf.gz")
     
-        logger.info(f"Computing GL for sample {name}, chromosome {chromosome}")
-        
-        mpileup_process = subprocess.Popen([BCFTOOLS, "mpileup",
-            "-f", REF, "-I", "-E", "-a", "FORMAT/DP",
-            "-T", filtered_vcf_path(chromosome), "-r", chromosome, line, "-Ou"
-        ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        try:
+            print(f"Computing GL for sample {name}, chromosome {chromosome}")
+            
+            mpileup_process = subprocess.Popen([BCFTOOLS, "mpileup",
+                "-f", REF, "-I", "-E", "-a", "FORMAT/DP",
+                "-T", filtered_vcf_path(chromosome), "-r", chromosome, line, "-Ou"
+            ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-        subprocess.run([BCFTOOLS, "call", "-Aim", "-C", "alleles",
-            "-T", filtered_tsv_path(chromosome), "-Oz", "-o", output_vcf
-        ], stdin=mpileup_process.stdout, capture_output=True, text=True, check=True)
-        mpileup_process.stdout.close()
+            call_process = subprocess.run([BCFTOOLS, "call", "-Aim", "-C", "alleles",
+                "-T", filtered_tsv_path(chromosome), "-Oz", "-o", output_vcf
+            ], stdin=mpileup_process.stdout, capture_output=True, text=True, check=True)
+            
+            mpileup_process.stdout.close()
+            
+            # Check if mpileup had any errors
+            _, mpileup_stderr = mpileup_process.communicate()
+            if mpileup_process.returncode != 0:
+                print(f"Error in mpileup for sample {name}, chromosome {chromosome}:")
+                print(mpileup_stderr.decode())
+                
+        except subprocess.CalledProcessError as e:
+            print(f"Error in bcftools call for sample {name}, chromosome {chromosome}:")
+            print(f"Command: {e.cmd}")
+            print(f"Return code: {e.returncode}")
+            print(f"Output: {e.stdout}")
+            print(f"Error: {e.stderr}")
+        except Exception as e:
+            print(f"Unexpected error processing sample {name}, chromosome {chromosome}:")
+            print(str(e))
 
         subprocess.run([TABIX, "-f", output_vcf], check=True)
 
@@ -56,14 +74,14 @@ def merge_gls(fq, chromosome):
     gl_list_path = create_vcf_list(os.path.join(glimpse_outdir(fq), "GL_file"), f"{chromosome}") 
     merged_vcf = os.path.join(os.path.join(glimpse_outdir(fq), "GL_file_merged"), f"{chromosome}.vcf.gz")
 
-    logger.info(f"Merging GL files for chromosome {chromosome}")
+    print(f"Merging GL files for chromosome {chromosome}")
     subprocess.run([BCFTOOLS, "merge", 
         "-m", "none", "-r", chromosome, "-Oz", "-o", merged_vcf, "-l", gl_list_path
     ], capture_output=True, text=True, check=True)
     
     subprocess.run([TABIX, "-f", merged_vcf], check=True)
 
-    logger.info(f"Merged GL file created at {merged_vcf}")
+    print(f"Merged GL file created at {merged_vcf}")
 
 
 def phase_genome(fq, chromosome):
@@ -82,7 +100,7 @@ def phase_genome(fq, chromosome):
             output_region = fields[3]
             output_vcf = os.path.join(imputed_path, f"{chromosome}.{chunk_id}.imputed.vcf")
 
-            logger.info(f"Phasing chromosome {chromosome}, chunk {chunk_id}")
+            print(f"Phasing chromosome {chromosome}, chunk {chunk_id}")
 
             command = [GLIMPSE_PHASE,
                 "--input-gl", merged_vcf,
@@ -99,6 +117,9 @@ def phase_genome(fq, chromosome):
             if process.returncode != 0:
                 logger.warning(f"Error phasing chromosome {chromosome}, chunk {chunk_id}: {process.stderr}")
                 continue
+
+            if os.path.exists(f"{output_vcf}.gz"):
+                os.remove(f"{output_vcf}.gz")
 
             subprocess.run([BGZIP, output_vcf], check=True)
             if chromosome == "chrX" and PARAMETERS['gender'] == 1:
@@ -131,10 +152,13 @@ def ligate_genome(fq, chromosome):
     imputed_list = os.path.join(imputed_path, f"{chromosome}_imputed_list.txt")
     output_vcf = glimpse_vcf(fq, chromosome).replace(".gz", "")
 
-    logger.info(f"Ligating genome for chromosome {chromosome}")
+    print(f"Ligating genome for chromosome {chromosome}")
     subprocess.run([GLIMPSE_LIGATE, 
         "--input", imputed_list, "--output", output_vcf
     ], capture_output=True, text=True, check=True)
+
+    if os.path.exists(f"{output_vcf}.gz"):
+        os.remove(f"{output_vcf}.gz")
 
     subprocess.run([BGZIP, output_vcf], check=True)
     if chromosome == "chrX" and PARAMETERS['gender'] == 1:
@@ -143,7 +167,7 @@ def ligate_genome(fq, chromosome):
 
 
 def annotate(fq, chromosome):
-    logger.info(f"Annotating genome for chromosome {chromosome}")
+    print(f"Annotating genome for chromosome {chromosome}")
     
     input = glimpse_vcf(fq, chromosome)
     output = glimpse_annot(fq, chromosome)
@@ -151,7 +175,7 @@ def annotate(fq, chromosome):
     subprocess.run([BCFTOOLS, "annotate", 
         "-a", f"{dbsnp_dir()}", "-c", "ID", "-O", "z", "-o", f"{output}", f"{input}"
     ], check=True)
-    logger.info(f"Added rsID annotations for chromosome {chromosome}")
+    print(f"Added rsID annotations for chromosome {chromosome}")
     
     filtered_output = output.replace(".vcf.gz", "_filtered.vcf") 
     
@@ -159,13 +183,16 @@ def annotate(fq, chromosome):
         subprocess.run(["zgrep", "^#", output], stdout=f, check=True)
         subprocess.run(["zgrep", "^[^#].*rs", output], stdout=f, check=True)
     
+    if os.path.exists(f"{filtered_output}.gz"):
+        os.remove(f"{filtered_output}.gz")
+
     subprocess.run([BGZIP, filtered_output], check=True)
     subprocess.run([TABIX, "-f", f"{filtered_output}.gz"], check=True)
     
     subprocess.run(["mv", f"{filtered_output}.gz", output], check=True)
     subprocess.run(["mv", f"{filtered_output}.gz.tbi", f"{output}.tbi"], check=True)
     
-    logger.info(f"Saved filtered annotations to {output}")
+    print(f"Saved filtered annotations to {output}")
 
 
 def run_glimpse_chr(fq, chromosome):
@@ -173,10 +200,10 @@ def run_glimpse_chr(fq, chromosome):
 
     # Step 0: Verify the flag
     if os.path.exists(finish_flag):
-        logger.info(f"Glimpse result for {chromosome} {fq} already exist. Skip glimpse for {chromosome}...")
-        return
+        print(f"Glimpse result for {chromosome} {fq} already exist. Skip glimpse for {chromosome}...")
+        #return
 
-    logger.info(f"Starting glimpse for chromosome {chromosome}...")
+    print(f"Starting glimpse for chromosome {chromosome}...")
 
     # Step 1: Compute GLs
     compute_gls(fq, chromosome)
@@ -197,7 +224,7 @@ def run_glimpse_chr(fq, chromosome):
     # Create finish flag
     with open(finish_flag, "w") as flag:
         flag.write(f"Completed Glimpse for {fq} {chromosome}.")
-    logger.info(f"Completed Glimpse for {fq} chromosome {chromosome}")
+    print(f"Completed Glimpse for {fq} chromosome {chromosome}")
 
 
 def run_glimpse(fq):    
@@ -210,26 +237,28 @@ def run_glimpse(fq):
 
     # Verify the flag
     if os.path.exists(finish_flag):
-        logger.info(f"Glimpse result for {fq} already exist. Skip glimpse step...")
-        return
+        print(f"Glimpse result for {fq} already exist. Skip glimpse step...")
+        #return
     
     create_samples_file_arg(fq)
     with ThreadPoolExecutor(max_workers=PARAMETERS['threads']) as executor:
         executor.map(lambda chr: run_glimpse_chr(fq, chr), PARAMETERS["chrs"])
     
-    #shutil.rmtree(os.path.join(glimpse_outdir(fq), "GL_file"))
-    #shutil.rmtree(os.path.join(glimpse_outdir(fq), "GL_file_merged"))
-    #shutil.rmtree(os.path.join(glimpse_outdir(fq), "imputed_file"))
-    logger.info(f"Deleted tmp dir for {fq}")
+    shutil.rmtree(os.path.join(glimpse_outdir(fq), "GL_file"))
+    shutil.rmtree(os.path.join(glimpse_outdir(fq), "GL_file_merged"))
+    shutil.rmtree(os.path.join(glimpse_outdir(fq), "imputed_file"))
+    print(f"Deleted tmp dir for {fq}")
+
+    return
 
     imputed_list = create_vcf_list(os.path.join(glimpse_outdir(fq), "imputed"), "imputed")
     merge_vcf_list(imputed_list, os.path.join(glimpse_vcf(fq, "all")))
 
     annotated_list = create_vcf_list(os.path.join(glimpse_outdir(fq), "annotated"), "annotated")
     merge_vcf_list(annotated_list, os.path.join(glimpse_annot(fq, "all")))
-    logger.info(f"Created merge vcf for all snp in {fq}")
+    print(f"Created merge vcf for all snp in {fq}")
 
     with open(finish_flag, "w") as flag:
         flag.write("Glimpse pipeline completed successfully.")
-    logger.info(f"Glimpse pipeline for {fq} completed successfully.")
+    print(f"Glimpse pipeline for {fq} completed successfully.")
 

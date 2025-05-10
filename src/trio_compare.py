@@ -67,13 +67,11 @@ for trio_name, trio_info in TRIO_DATA.items():
         "total": total
     }
 
-# === Ghi kết quả ra CSV ===
 df = pd.DataFrame.from_dict(trio_stats, orient="index")
 df.index.name = "Trio"
 df.reset_index(inplace=True)
 df.to_csv("trio_genotype_comparison.csv", index=False)
 
-# === Vẽ biểu đồ stacked ===
 plt.figure(figsize=(10, 6))
 
 x = range(len(df))

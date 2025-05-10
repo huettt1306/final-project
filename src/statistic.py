@@ -30,7 +30,6 @@ def read_vcf_by_variant(vcf_path):
         sample_gts = {}
         for i, sample_gt in enumerate(record.genotypes):
             sample_name = vcf.samples[i]
-            # sample_gt: [allele1, allele2, phased] OR just [allele1, None, phased] OR [allele1]
             alleles = [a for a in sample_gt[:2] if a is not None and a >= 0]
             gt_set = set(alleles) if alleles else None
             sample_gts[sample_name] = gt_set
@@ -77,7 +76,6 @@ def stats_single(ground_truth, chromosome, fq):
             update_stats(result, "glimpse")
 
     df.index.name = "MAF"
-    print(df)
     save_results_to_csv(statistic_summary(fq, chromosome), df)
 
     print(f"Stats single saved to csv.")
@@ -138,7 +136,7 @@ def stats_nipt(ground_truth, chromosome, fq):
             df.loc[maf, "alt_mom_correct_child_wrong"] += 1
         elif alt_child_ok and not alt_mom_ok:
             df.loc[maf, "alt_child_correct_mom_wrong"] += 1
-        elif not alt_child_ok and not alt_mom_ok:
+        elif not alt_child_ok and not alt_mom_ok and result_mom["ALT"]:
             df.loc[maf, "alt_both_wrong"] += 1
 
         df.loc[maf, "alt_mom_correct"] += alt_mom_ok
@@ -152,7 +150,6 @@ def stats_nipt(ground_truth, chromosome, fq):
             update_stats(result_child, result_mom)
 
     df.index.name = "MAF"
-    print(df)
     save_results_to_csv(statistic_summary(fq, chromosome), df)
     print(f"Stats nipt saved to csv")
     return df
@@ -181,18 +178,71 @@ def statistic(chromosome) :
                     PARAMETERS["coverage"]
                 )
 
-            for coverage in PARAMETERS["coverage"]:
-                with ThreadPoolExecutor(max_workers=3) as executor:
-                    executor.map(
-                        lambda ff: stats_nipt(
-                            ground_truth, chromosome,
-                            os.path.join(fastq_nipt_path(child_name, mother_name, father_name, coverage, ff, index), f"{child_name}_{mother_name}_{father_name}.fastq.gz")
-                        ),
-                        PARAMETERS["ff"]
-                    )
+            # for coverage in PARAMETERS["coverage"]:
+            #     with ThreadPoolExecutor(max_workers=3) as executor:
+            #         executor.map(
+            #             lambda ff: stats_nipt(
+            #                 ground_truth, chromosome,
+            #                 os.path.join(fastq_nipt_path(child_name, mother_name, father_name, coverage, ff, index), f"{child_name}_{mother_name}_{father_name}.fastq.gz")
+            #             ),
+            #             PARAMETERS["ff"]
+            #         )
+
+def stats_recheck(ground_truth, chromosome, fq):
+    print(f"Start stats single for {fq}")
+    vcf = VCF(basevar_vcf(fq, chromosome))
+    sample_names = vcf.samples
+    stats = {name: {"ALT_correct": 0, "ALT_wrong": 0, "ALT_undecided": 0} for name in sample_names}
+
+
+    for record in vcf:
+        key = get_key_from_record(record)
+        for i, sample_gt in enumerate(record.genotypes):
+            sample_name = sample_names[i]
+
+            if sample_gt is None:
+                continue
+
+            alleles = [a for a in sample_gt[:2] if a is not None and a >= 0]
+            gt_set = set(alleles) if alleles else None
+
+            if not gt_set or gt_set == {0}:
+                continue
+
+            if key not in ground_truth:
+                stats[sample_name]["ALT_undecided"] += 1
+                continue
+
+            gt_truth = ground_truth[key]["samples"][sample_name]
+            if gt_truth != {0}:
+                stats[sample_name]["ALT_correct"] += 1
+            else:
+                stats[sample_name]["ALT_wrong"] += 1
+
+    df = pd.DataFrame.from_dict(stats, orient="index")
+    df.index.name = "Sample"
+    save_results_to_csv(statistic_summary(fq, chromosome), df)
+    return df.reset_index()
+
+
+def recheck_statistic(chromosome) :
+    print(f"Loading ground truth for {chromosome}")
+    ground_truth = read_vcf_by_variant(ground_truth_vcf(chromosome))
+    print(f"Loaded ground truth for {chromosome}")
+
+    for index in range(PARAMETERS["startSampleIndex"], PARAMETERS["endSampleIndex"] + 1):
+        for coverage in PARAMETERS["coverage"]:
+            logger.info(f"######## PROCESSING index {index} and coverage {coverage} ########")
+
+            fqdir = os.path.join(PATHS["result_directory"], f"{coverage}x", "all", f"sample_{index}", "all.fastq.gz")
+            stats_recheck(ground_truth, chromosome, fqdir),
+
 
 
 def main():
+    #with ThreadPoolExecutor(max_workers=1) as executor:
+    #   executor.map(recheck_statistic, PARAMETERS["chrs"])
+
     if len(sys.argv) < 2:
         logger.error("Please provide a chr to process.")
         sys.exit(1)

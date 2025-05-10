@@ -13,10 +13,10 @@ def fastq_path_lane1(name):
 def fastq_path_lane2(name):
     return os.path.join(PATHS["fastq_directory"], f"{name}_2.fastq.gz")
 
-def fastq_single_path(name, coverage, index):
+def fastq_single_path(name, coverage, index=1):
     return os.path.join(PATHS["result_directory"], f"{coverage}x", name, f"sample_{index}")
 
-def fastq_nipt_path(child, mother, father, coverage, ff, index):
+def fastq_nipt_path(child, mother, father, coverage, ff, index=1):
     return os.path.join(PATHS["result_directory"], f"{coverage}x", f"{child}_{mother}_{father}", f"{ff:.2f}", f"sample_{index}")
 
 def base_dir(fq):
@@ -44,12 +44,12 @@ def basevar_vcf(fq, chromosome):
     return os.path.join(f"{basevar_outdir(fq)}_final", f"{samid(fq)}_basevar_{chromosome}.vcf.gz")
 
 def glimpse_outdir(fq):
-    return os.path.join(base_dir(fq), "glimpse_output")
+    return os.path.join(base_dir(fq), "glimpse_output_")
 
 def vcf_prefix(chromosome):
     if(chromosome == "chrX"):
-        return "CCDG_14151_B01_GRM_WGS_2020-08-05_chrX.filtered.eagle2-phased.diploid_recal"
-    return f"CCDG_14151_B01_GRM_WGS_2020-08-05_{chromosome}.filtered.shapeit2-duohmm-phased"
+        return "CCDG_14151_B01_GRM_WGS_2020-08-05_chrX.filtered.eagle2-phased.diploid_recal-rmsp"
+    return f"CCDG_14151_B01_GRM_WGS_2020-08-05_{chromosome}.filtered.shapeit2-duohmm-phased-rmsp"
 
 def get_vcf_path(chromosome):
     return os.path.join(PATHS["reference_path"], f"{vcf_prefix(chromosome)}.vcf.gz")

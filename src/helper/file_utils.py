@@ -145,7 +145,6 @@ def process_vcf(vcf_path, method="Test", sample=None):
 
     except Exception as e:
         logger.error(f"Error processing VCF file {vcf_path}: {e}")
-        raise
 
     logger.info(f"Finished processing VCF file: {vcf_path}")
     return pd.DataFrame(variants)

@@ -1,0 +1,1 @@
+montage accuracy_alt_0.1_glimpse_maf.png accuracy_alt_0.2_glimpse_maf.png accuracy_alt_0.5_glimpse_maf.png accuracy_alt_1_glimpse_maf.png -tile 2x2 -geometry +5+5 accuracy_single_maf.png

@@ -33,10 +33,10 @@ def download_reference_panel(chromosome):
     index_path = f"{vcf_path}.tbi"
 
     if os.path.exists(vcf_path) and os.path.exists(index_path):
-        logger.info(f"Reference panel for {chromosome} already exists. Skipping download.")
+        print(f"Reference panel for {chromosome} already exists. Skipping download.")
         return vcf_path
 
-    logger.info(f"Downloading reference panel for chromosome {chromosome}...")
+    print(f"Downloading reference panel for chromosome {chromosome}...")
 
     commands = [
         ["wget", "-c", url, "-P", reference_path],
@@ -49,7 +49,7 @@ def download_reference_panel(chromosome):
             logger.error(f"Error downloading file: {process.stderr}")
             raise RuntimeError(f"Error downloading file: {process.stderr}")
 
-    logger.info(f"Downloaded reference panel for chromosome {chromosome}.")
+    print(f"Downloaded reference panel for chromosome {chromosome}.")
     return vcf_path
 
 def normalize_and_filter_reference(chromosome):
@@ -57,10 +57,10 @@ def normalize_and_filter_reference(chromosome):
     output_vcf = norm_vcf_path(chromosome)
 
     if os.path.exists(output_vcf) and os.path.exists(f"{output_vcf}.tbi"):
-        logger.info(f"Filtered VCF already exists. Skipping normalization and filtering.")
+        print(f"Filtered VCF already exists. Skipping normalization and filtering.")
         return output_vcf
 
-    logger.info(f"Normalizing and filtering VCF for chromosome {chromosome}...")
+    print(f"Normalizing and filtering VCF for chromosome {chromosome}...")
     command = [
         BCFTOOLS, "norm", "-m", "-any", vcf_path, "-Ou",
         "--threads", f"{PARAMETERS['threads']}", "|",
@@ -76,7 +76,7 @@ def normalize_and_filter_reference(chromosome):
     index_command = [BCFTOOLS, "index", "-f", output_vcf]
     subprocess.run(index_command, check=True)
 
-    logger.info(f"Filtered VCF created at {output_vcf}.")
+    print(f"Filtered VCF created at {output_vcf}.")
     return output_vcf
 
 def process_snp_sites(chromosome):
@@ -85,10 +85,10 @@ def process_snp_sites(chromosome):
     tsv_output = filtered_tsv_path(chromosome)
 
     if os.path.exists(filtered_vcf) and os.path.exists(f"{filtered_vcf}.tbi") and os.path.exists(tsv_output):
-        logger.info(f"SNP site files already exist. Skipping SNP site processing.")
+        print(f"SNP site files already exist. Skipping SNP site processing.")
         return filtered_vcf, tsv_output
 
-    logger.info(f"Processing SNP sites for chromosome {chromosome}...")
+    print(f"Processing SNP sites for chromosome {chromosome}...")
     commands = [
         [BCFTOOLS, "view", "-G", "-m", "2", "-M", "2", "-v", "snps", vcf_path, "-Oz", "-o", filtered_vcf, "--threads", f"{PARAMETERS['threads']}",],
         [BCFTOOLS, "index", "-f", filtered_vcf],
@@ -100,7 +100,7 @@ def process_snp_sites(chromosome):
             logger.error(f"Error processing SNP sites: {process.stderr}")
             raise RuntimeError(f"Error processing SNP sites: {process.stderr}")
 
-    logger.info(f"Running bcftools query and bgzip for chromosome {chromosome}...")
+    print(f"Running bcftools query and bgzip for chromosome {chromosome}...")
     with open(tsv_output, "wb") as output_file:
         query_command = [BCFTOOLS, "query", "-f", "%CHROM\\t%POS\\t%REF,%ALT\\n", filtered_vcf]
         query_process = subprocess.Popen(query_command, stdout=subprocess.PIPE)
@@ -108,10 +108,10 @@ def process_snp_sites(chromosome):
         query_process.stdout.close()
         query_process.wait()
 
-    logger.info(f"Running tabix for chromosome {chromosome}...")
+    print(f"Running tabix for chromosome {chromosome}...")
     subprocess.run([TABIX, "-s1", "-b2", "-e2", tsv_output], check=True)
 
-    logger.info(f"Processed SNP sites for chromosome {chromosome}.")
+    print(f"Processed SNP sites for chromosome {chromosome}.")
     return filtered_vcf, tsv_output
 
 
@@ -119,11 +119,13 @@ def chunk_reference_genome(chromosome):
     vcf_path = get_vcf_path(chromosome)
     chunks_output = chunks_path(chromosome)
 
+    print(chunks_output)
+
     if os.path.exists(chunks_output):
-        logger.info(f"Chunk file already exists: {chunks_output}. Skipping chunking.")
+        print(f"Chunk file already exists: {chunks_output}. Skipping chunking.")
         return chunks_output
 
-    logger.info(f"Chunking reference genome for chromosome {chromosome}...")
+    print(f"Chunking reference genome for chromosome {chromosome}...")
 
     subprocess.run([GLIMPSE_CHUNK, 
         "--input", vcf_path, "--region", chromosome,
@@ -132,33 +134,33 @@ def chunk_reference_genome(chromosome):
     ], capture_output=True, text=True, check=True)
 
 
-    logger.info(f"Chunk file created at {chunks_output}.")
+    print(f"Chunk file created at {chunks_output}.")
     return chunks_output
 
 def prepare_gatk_bundle():
     dbsnp = dbsnp_dir()
 
     if not os.path.exists(dbsnp):
-        logger.info(f"{dbsnp} not found. Compressing {dbsnp}...")
+        print(f"{dbsnp} not found. Compressing {dbsnp}...")
         
         subprocess.run([TOOLS['bgzip'], dbsnp], check=True)
         subprocess.run([TOOLS['tabix'], "-f", f"{dbsnp}.gz"], check=True)
         
-        logger.info(f"{dbsnp} has been compressed and indexed.")
+        print(f"{dbsnp} has been compressed and indexed.")
     else:
-        logger.info(f"{dbsnp} already exists. No action needed.")
+        print(f"{dbsnp} already exists. No action needed.")
 
 
 def prepare_reference_panel(chromosome):
-    logger.info(f"Preparing {chromosome}")
+    print(f"Preparing {chromosome}")
     os.makedirs(reference_path, exist_ok=True)
 
     if check_reference_panel(chromosome):
-        logger.info(f"Reference panel for {chromosome} already exists. Skipping.")
+        print(f"Reference panel for {chromosome} already exists. Skipping.")
         return
     
     # Step 1: Download reference panel
-    download_reference_panel(chromosome)
+    #download_reference_panel(chromosome)
 
     # Step 2: Normalize and filter reference panel
     normalize_and_filter_reference(chromosome)
@@ -169,13 +171,16 @@ def prepare_reference_panel(chromosome):
     # Step 4: Chunk reference genome
     chunk_reference_genome(chromosome)
 
-    logger.info(f"Reference panel preparation completed for {chromosome}.")
+    print(f"Reference panel preparation completed for {chromosome}.")
 
 
 def run_prepare_reference_panel():
     # Step 0: verify gatk bundle
-    logger.info("Preparing reference....")
-    prepare_gatk_bundle()
+    print("Preparing reference....")
+    #prepare_gatk_bundle()
 
-    with ThreadPoolExecutor(max_workers=1) as executor:  
+    prepare_reference_panel("chr22")
+    return
+
+    with ThreadPoolExecutor(max_workers=4) as executor:  
         executor.map(prepare_reference_panel, PARAMETERS["chrs"])

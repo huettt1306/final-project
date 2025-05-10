@@ -34,7 +34,7 @@ def run_basevar_step(fq, chromosome):
     bamlist_path = bamlist_dir(fq)
     outdir = basevar_outdir(fq)
 
-    logger.info(f"Run basevar step for {fq} {chromosome} with ref_fai {ref_fai} and delta {DELTA}")
+    print(f"Run basevar step for {fq} {chromosome} with ref_fai {ref_fai} and delta {DELTA}")
 
     for chr_id, reg_start, reg_end in ref_fai:
         for i in range(reg_start - 1, reg_end, DELTA):
@@ -44,7 +44,7 @@ def run_basevar_step(fq, chromosome):
             outfile_prefix = f"{chr_id}_{start}_{end}"
             log_file = f"{outdir}/{outfile_prefix}.log"
 
-            logger.info(f"Starting BaseVar for {fq} region {region}")
+            print(f"Starting BaseVar for {fq} region {region}")
 
             try:
                 with open(log_file, "w") as log:
@@ -57,7 +57,7 @@ def run_basevar_step(fq, chromosome):
                         "--output-cvg", f"{outdir}/{outfile_prefix}.cvg.tsv.gz",
                         "--smart-rerun"
                     ], stdout=log, stderr=subprocess.STDOUT, check=True)
-                    logger.info(f"Done BaseVar for region {region}")
+                    print(f"Done BaseVar for region {region}")
 
             except Exception as e:
                 logger.error(f"Unexpected error occurred for region {region}: {e}")
@@ -65,14 +65,14 @@ def run_basevar_step(fq, chromosome):
 
 
 def merge_vcf_files(fq, chromosome):
-    logger.info(f"Creating vcf_list for {fq} {chromosome}")
+    print(f"Creating vcf_list for {fq} {chromosome}")
     vcf_list = create_vcf_list(basevar_outdir(fq), f"{chromosome}")
     merged_vcf = basevar_vcf(fq, chromosome)
 
-    logger.info(f"Merging vcf_list for {fq} {chromosome}")
+    print(f"Merging vcf_list for {fq} {chromosome}")
     merge_vcf_list(vcf_list, merged_vcf)
 
-    logger.info(f"Indexing VCF file {merged_vcf}")
+    print(f"Indexing VCF file {merged_vcf}")
     subprocess.run([TABIX, "-f", merged_vcf], check=True)
 
 
@@ -81,10 +81,10 @@ def run_basevar_chr(fq, chromosome):
 
     # Step 0: Verify the flag
     if os.path.exists(finish_flag):
-        logger.info(f"Basevar result for {chromosome} {samid(fq)} already exist. Skip basevar for {chromosome}...")
+        print(f"Basevar result for {chromosome} {samid(fq)} already exist. Skip basevar for {chromosome}...")
         return
 
-    logger.info(f"Run basevar for {fq} {chromosome}")
+    print(f"Run basevar for {fq} {chromosome}")
 
     # Step 1: Run BaseVar for the chromosome
     run_basevar_step(fq, chromosome)
@@ -95,7 +95,7 @@ def run_basevar_chr(fq, chromosome):
     # Create finish flag
     with open(finish_flag, "w") as flag:
         flag.write(f"Completed BaseVar for {fq} {chromosome}.")
-    logger.info(f"Completed BaseVar for {fq} chromosome {chromosome}")
+    print(f"Completed BaseVar for {fq} chromosome {chromosome}")
 
 
 def run_basevar(fq):
@@ -106,7 +106,7 @@ def run_basevar(fq):
         executor.map(lambda chr: run_basevar_chr(fq, chr), PARAMETERS["chrs"])
 
     #shutil.rmtree(basevar_outdir(fq))
-    logger.info(f"Temporary directory {basevar_outdir(fq)} deleted.")
+    print(f"Temporary directory {basevar_outdir(fq)} deleted.")
 
-    logger.info(f"Completed BaseVar pipeline for {fq}.")
+    print(f"Completed BaseVar pipeline for {fq}.")
 

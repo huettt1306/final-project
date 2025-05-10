@@ -23,7 +23,6 @@ def collect_stats(bam_path):
             if read.mapping_quality >= 20:
                 mapq_ge_20 += 1
 
-            # Extract NM (edit distance / mismatches)
             try:
                 nm = read.get_tag("NM")
                 mismatches += nm
@@ -31,7 +30,6 @@ def collect_stats(bam_path):
             except KeyError:
                 pass
 
-            # Insert size
             if read.template_length > 0:
                 insert_sizes.append(abs(read.template_length))
 
@@ -57,13 +55,10 @@ def print_comparison(stats1, stats2, label1="Before", label2="After"):
         val2 = stats2[key]
         print(f"{key:<30}{val1:<15.5f}{val2:<15.5f}")
 
-# Paths to BAM files
 bam_before = "/home/huettt/Documents/nipt/NIPT-human-genetics/working/result/0.1x/HG02019/sample_1/1tmp_files/HG02019.sorted.rmdup.bam"
 bam_after = "/home/huettt/Documents/nipt/NIPT-human-genetics/working/result/0.1x/HG02019/sample_1/1tmp_files/HG02019.sorted.rmdup.realign.bam"
 
-# Run stats
 stats_before = collect_stats(bam_before)
 stats_after = collect_stats(bam_after)
 
-# Print comparison
 print_comparison(stats_before, stats_after)

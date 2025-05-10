@@ -7,9 +7,6 @@ from helper.path_define import statistic_outdir, fastq_single_path, fastq_nipt_p
 
 
 def read_and_process_single_samples(outdir, chromosome="all"):
-    """
-    Đọc và xử lý tất cả các mẫu.
-    """
     print(f"Processing single sample....")
     for coverage in PARAMETERS["coverage"]:
         df_list = []
@@ -43,9 +40,6 @@ def read_and_process_single_samples(outdir, chromosome="all"):
             plot_mean_data(df_mean, os.path.join(outdir, f"{type}_{coverage}x.png"), type)
 
 def read_and_process_nipt_samples(outdir, chromosome="all"):
-    """
-    Đọc và xử lý tất cả các mẫu NIPT từ các thư mục trong root_dir.
-    """
     print("Ploting nipt data...")
     for ff in PARAMETERS["ff"]:
         for coverage in PARAMETERS["coverage"]:
