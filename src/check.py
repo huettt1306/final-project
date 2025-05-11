@@ -55,7 +55,7 @@ def process_trio(trio_name, trio_info):
 
 
 def main():
-    #run_prepare_reference_panel()
+    run_prepare_reference_panel()
     if len(sys.argv) < 2:
         logger.error("Please provide a trio name to process.")
         sys.exit(1)

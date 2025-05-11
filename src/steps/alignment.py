@@ -25,7 +25,7 @@ def run_bwa_alignment(fq, outdir):
     bam_file = os.path.join(outdir, f"{samid(fq)}.bam")
     sorted_bam = os.path.join(outdir, f"{samid(fq)}.sorted.bam")
     rmdup_bam = os.path.join(outdir, f"{samid(fq)}.sorted.rmdup.bam")
-    finish_flag = os.path.join(outdir, "bwa_sort_rmdup.finish")
+    finish_flag = os.path.join(outdir, f"{samid(fq)}.bwa_sort_rmdup.finish")
 
     # Step 0: Verify the flag
     if os.path.exists(finish_flag):
@@ -79,7 +79,7 @@ def run_bwa_realign(sample_id, outdir):
     bam_file = os.path.join(outdir, f"{sample_id}.sorted.rmdup.bam")
     intervals_file = os.path.join(outdir, f"{sample_id}.indel_target_intervals.list")
     realigned_bam = os.path.join(outdir, f"{sample_id}.sorted.rmdup.realign.bam")
-    finish_flag = os.path.join(outdir, "realigner.finish")
+    finish_flag = os.path.join(outdir, f"{sample_id}.realigner.finish")
 
     # Step 0: Verify the flag
     if os.path.exists(finish_flag):
@@ -119,7 +119,7 @@ def run_bqsr(sample_id, outdir):
     realigned_bam = os.path.join(outdir, f"{sample_id}.sorted.rmdup.realign.bam")
     recal_table = os.path.join(outdir, f"{sample_id}.recal_data.table")
     bqsr_bam = os.path.join(outdir, f"{sample_id}.sorted.rmdup.realign.BQSR.bam")
-    bsqr_flag = os.path.join(outdir, "bsqr.finish")
+    bsqr_flag = os.path.join(outdir, f"{sample_id}.bsqr.finish")
 
     # Step 0: Verify the flag
     if os.path.exists(bsqr_flag):
@@ -171,7 +171,7 @@ def run_bqsr(sample_id, outdir):
 def run_bam_stats(sample_id, outdir):
     bqsr_bam = os.path.join(outdir, f"{sample_id}.sorted.rmdup.realign.BQSR.bam")
     bam_stats_file = os.path.join(outdir, f"{sample_id}.sorted.rmdup.realign.BQSR.bamstats")
-    bam_stats_flag = os.path.join(outdir, "bamstats.finish")
+    bam_stats_flag = os.path.join(outdir, f"{sample_id}.bamstats.finish")
 
     # Verify the flag
     if os.path.exists(bam_stats_flag):
@@ -193,7 +193,7 @@ def run_bam_stats(sample_id, outdir):
 def run_bedtools(sample_id, outdir):
     bqsr_bam = os.path.join(outdir, f"{sample_id}.sorted.rmdup.realign.BQSR.bam")
     cvg_bed_gz = os.path.join(outdir, f"{sample_id}.sorted.rmdup.realign.BQSR.cvg.bed.gz")
-    finish_flag = os.path.join(outdir, "sorted_rmdup_realign_BQSR_cvg_bed.finish")
+    finish_flag = os.path.join(outdir, f"{sample_id}.sorted_rmdup_realign_BQSR_cvg_bed.finish")
 
     # Step 0: Verify the flag
     if os.path.exists(finish_flag):
@@ -232,9 +232,9 @@ def move_final_output(fq, tmp_dir, final_dir):
                     bam_list.write(f"{dst_file}\n")
 
     # Step 2: Remove the temporary output directory
-    logger.info("Removing temporary output directory...")
-    #shutil.rmtree(tmp_dir)
-    logger.info(f"Temporary directory {tmp_dir} deleted.")
+    # logger.info("Removing temporary output directory...")
+    # shutil.rmtree(tmp_dir)
+    # logger.info(f"Temporary directory {tmp_dir} deleted.")
 
 
 def run_alignment_pipeline(fq):
@@ -269,3 +269,41 @@ def run_alignment_pipeline(fq):
     with open(finish_flag, "w") as flag:
         flag.write("Alignment pipeline completed successfully.")
     logger.info(f"Done alignment for {samid(fq)}")
+
+def run_multiple_alignment(fqlist):
+    os.makedirs(tmp_outdir(fqlist), exist_ok=True)
+    os.makedirs(batch1_final_outdir(fqlist), exist_ok=True)
+
+    with open(fqlist, 'r') as file:
+        for line in file:
+            if line.strip():
+                fq = line.split()[0]
+                finish_flag = os.path.join(batch1_final_outdir(fqlist), f"{samid(fq)}_alignment.finish")
+
+                # Step 0: Verify the flag
+                if os.path.exists(finish_flag):
+                    logger.info(f"Alignment result for {samid(fq)} already exist. Skip alignment pipeline...")
+                    continue
+
+                # Step 1: Run BWA to align and remove duplicates
+                run_bwa_alignment(fq, tmp_outdir(fqlist))
+
+                # Step 2: Realignment
+                run_bwa_realign(samid(fq), tmp_outdir(fqlist))
+
+                # Step 3: Recalibrate Base Quality Scores (BQSR)
+                run_bqsr(samid(fq), tmp_outdir(fqlist))
+
+                # Step 4: Generate BAM and coverage statistics
+                run_bam_stats(samid(fq), tmp_outdir(fqlist))
+
+                # Step 5: Bedtools
+                run_bedtools(samid(fq), tmp_outdir(fqlist))
+
+                # Step 6: Move final result file to batch1_final_files
+                move_final_output(fq, tmp_outdir(fq), batch1_final_outdir(fqlist))
+
+                # Create finish flag
+                with open(finish_flag, "w") as flag:
+                    flag.write("Alignment pipeline completed successfully.")
+                logger.info(f"Done alignment for {samid(fq)}")

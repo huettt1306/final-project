@@ -22,8 +22,17 @@ MAP_PATH = PATHS["map_path"]
 
 def create_samples_file_arg(fq):
     samples_file = os.path.join(os.path.join(glimpse_outdir(fq), "imputed_file"), "samples.txt")
-    with open(samples_file, "w") as sf:
-        sf.write(f"{samid(fq)} {PARAMETERS['gender']}\n")
+    if fq.endswith("gz"):
+        with open(samples_file, "w") as sf:
+            sf.write(f"{samid(fq)} {PARAMETERS['gender']}\n")
+    else:
+        with open(fq, "r") as f_in, open(samples_file, "w") as f_out:
+            for line in f_in:
+                parts = line.strip().split()
+                name = samid(parts[0]) if parts else ""
+                gender = parts[1] if len(parts) >= 2 else PARAMETERS['gender']
+                f_out.write(f"{name} {gender}\n")
+
 
 
 def compute_gls(fq, chromosome):
@@ -201,7 +210,7 @@ def run_glimpse_chr(fq, chromosome):
     # Step 0: Verify the flag
     if os.path.exists(finish_flag):
         print(f"Glimpse result for {chromosome} {fq} already exist. Skip glimpse for {chromosome}...")
-        #return
+        return
 
     print(f"Starting glimpse for chromosome {chromosome}...")
 
@@ -244,10 +253,10 @@ def run_glimpse(fq):
     with ThreadPoolExecutor(max_workers=PARAMETERS['threads']) as executor:
         executor.map(lambda chr: run_glimpse_chr(fq, chr), PARAMETERS["chrs"])
     
-    shutil.rmtree(os.path.join(glimpse_outdir(fq), "GL_file"))
-    shutil.rmtree(os.path.join(glimpse_outdir(fq), "GL_file_merged"))
-    shutil.rmtree(os.path.join(glimpse_outdir(fq), "imputed_file"))
-    print(f"Deleted tmp dir for {fq}")
+    #shutil.rmtree(os.path.join(glimpse_outdir(fq), "GL_file"))
+    #shutil.rmtree(os.path.join(glimpse_outdir(fq), "GL_file_merged"))
+    #shutil.rmtree(os.path.join(glimpse_outdir(fq), "imputed_file"))
+    #print(f"Deleted tmp dir for {fq}")
 
     return
 

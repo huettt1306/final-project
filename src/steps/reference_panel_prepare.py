@@ -179,8 +179,5 @@ def run_prepare_reference_panel():
     print("Preparing reference....")
     #prepare_gatk_bundle()
 
-    prepare_reference_panel("chr22")
-    return
-
     with ThreadPoolExecutor(max_workers=4) as executor:  
         executor.map(prepare_reference_panel, PARAMETERS["chrs"])
