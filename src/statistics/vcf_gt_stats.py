@@ -3,10 +3,8 @@ import glob
 import csv
 from collections import defaultdict
 from cyvcf2 import VCF
-from helper.config import PARAMETERS, TRIO_DATA, PATHS
 
-
-vcf_dir = PATHS["vcf_directory"]
+vcf_dir = "/home/huettt/Documents/nipt/NIPT-human-genetics/working/vcf_"
 
 stats = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: {
     'Total_GT': 0,
@@ -15,8 +13,9 @@ stats = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: {
     'HOM_ALT': 0
 })))
 
+chrs = ["chr1", "chr2", "chr3", "chr4", "chr5", "chr6", "chr7", "chr8", "chr9", "chr10", "chr11", "chr12", "chr13", "chr14", "chr15", "chr16", "chr17", "chr18", "chr19", "chr20", "chr21", "chr22", "chrX"]
 
-for chr_name in PARAMETERS["chrs"]:
+for chr_name in chrs:
     file = os.path.join(vcf_dir, f"{chr_name}_variants.vcf.gz")
     vcf = VCF(file)
 
@@ -49,10 +48,10 @@ for chr_name in PARAMETERS["chrs"]:
                     elif alleles[0] > 0:
                         stats[chr_name][sample_name][maf_bin]['HOM_ALT'] += 1
 
-with open(PATHS["ground_truth_stat"], 'w', newline='') as csvfile:
+with open(os.path.join(vcf_dir, "genotype_stats_per_chr.csv"), 'w', newline='') as csvfile:
     writer = csv.writer(csvfile)
     writer.writerow(['Chr', 'Sample', 'MAF', 'Total_GT', 'ALT_GT', 'HET_GT', 'HOM_ALT'])
-    for chr_name in PARAMETERS["chrs"]:
+    for chr_name in chrs:
         for sample in sorted(stats[chr_name]):
             for maf_bin in sorted(stats[chr_name][sample].keys()):
                 s = stats[chr_name][sample][maf_bin]

@@ -178,15 +178,15 @@ def statistic(chromosome) :
                     PARAMETERS["coverage"]
                 )
 
-            # for coverage in PARAMETERS["coverage"]:
-            #     with ThreadPoolExecutor(max_workers=3) as executor:
-            #         executor.map(
-            #             lambda ff: stats_nipt(
-            #                 ground_truth, chromosome,
-            #                 os.path.join(fastq_nipt_path(child_name, mother_name, father_name, coverage, ff, index), f"{child_name}_{mother_name}_{father_name}.fastq.gz")
-            #             ),
-            #             PARAMETERS["ff"]
-            #         )
+            for coverage in PARAMETERS["coverage"]:
+                with ThreadPoolExecutor(max_workers=3) as executor:
+                    executor.map(
+                        lambda ff: stats_nipt(
+                            ground_truth, chromosome,
+                            os.path.join(fastq_nipt_path(child_name, mother_name, father_name, coverage, ff, index), f"{child_name}_{mother_name}_{father_name}.fastq.gz")
+                        ),
+                        PARAMETERS["ff"]
+                    )
 
 def stats_recheck(ground_truth, chromosome, fq):
     print(f"Start stats single for {fq}")

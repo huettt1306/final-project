@@ -31,19 +31,18 @@ def compare_with_ground_truth(record, ground_truth, sample_name):
         "MAF": ground_truth[key]["MAF"],
     }
 
-    # So sánh chính xác GT
+    # GT
     if gt_set == gt_truth:
         result["GT_correct"] += 1
     else:
         result["GT_wrong"] += 1
 
-    # Đánh giá ALT
-    if gt_set != {0}:  # dự đoán có biến thể
+    #ALT
+    if gt_set != {0}:  
         result["ALT"] += 1
-        if gt_truth != {0}:  # ground truth cũng có biến thể
+        if gt_truth != {0}:  
             result["ALT_correct"] += 1
         else:
             result["ALT_wrong"] += 1
 
     return result
-

@@ -1,4 +1,4 @@
-import pysam, os, gzip
+import os
 import subprocess
 from helper.path_define import fastq_path_lane1
 from helper.config import TOOLS, PATHS
@@ -28,7 +28,7 @@ def get_fastq_coverage(name):
     stats_values = result.stdout.split()
     
     if len(stats_values) < 5:
-        raise ValueError("Không thể lấy thống kê từ seqkit. Hãy kiểm tra file FASTQ.")
+        raise ValueError("Segkit error!")
 
     total_bases = int(stats_values[4].replace(",", ""))  
 
@@ -41,63 +41,3 @@ def get_fastq_coverage(name):
     return coverage
 
 
-def evaluate_vcf(ground_truth_file, test_file):
-    gt_vcf = pysam.VariantFile(ground_truth_file)
-    test_vcf = pysam.VariantFile(test_file)
-
-    ground_truth_variants = {(rec.chrom, rec.pos, rec.ref, tuple(rec.alts)) for rec in gt_vcf.fetch()}
-    test_variants = {(rec.chrom, rec.pos, rec.ref, tuple(rec.alts)) for rec in test_vcf.fetch()}
-
-    true_positives = test_variants & ground_truth_variants
-    false_positives = test_variants - ground_truth_variants
-    false_negatives = ground_truth_variants - test_variants
-
-    total_ground_truth = len(ground_truth_variants)
-    total_test_variants = len(test_variants)
-
-    accuracy = len(true_positives) / total_test_variants * 100 if total_test_variants > 0 else 0
-    precision = len(true_positives) / (len(true_positives) + len(false_positives)) * 100 if (len(true_positives) + len(false_positives)) > 0 else 0
-    recall = len(true_positives) / total_ground_truth * 100 if total_ground_truth > 0 else 0
-
-    return {
-        "total_ground_truth": total_ground_truth,
-        "total_test_variants": total_test_variants,
-        "true_positives": len(true_positives),
-        "false_positives": len(false_positives),
-        "false_negatives": len(false_negatives),
-        "accuracy": accuracy,
-        "precision": precision,
-        "recall": recall,
-    }
-
-
-def compare_fastq_sequences(file1, file2):
-    diff_count = 0  
-    total_reads = 0  
-    
-    with gzip.open(file1, 'rt') as f1, gzip.open(file2, 'rt') as f2:
-        while True:
-            id1, seq1, plus1, qual1 = f1.readline(), f1.readline(), f1.readline(), f1.readline()
-            id2, seq2, plus2, qual2 = f2.readline(), f2.readline(), f2.readline(), f2.readline()
-
-            if not seq1 or not seq2:
-                break
-
-            total_reads += 1
-            if seq1.strip() != seq2.strip(): 
-                diff_count += 1
-                print("\n================================\n")
-                print(f"Read {total_reads} is different.")
-                print(f"File 1 Sequence: {seq1.strip()}")
-                print(f"File 2 Sequence: {seq2.strip()}")
-
-    print("\n================================\n")
-    print(f"Total reads compared: {total_reads}")
-    print(f"Total different sequences: {diff_count}")
-    
-    if diff_count == 0:
-        print("✅ FASTQ files have identical sequences.")
-    else:
-        print("❌ FASTQ files have different sequences.")
-
-    return diff_count

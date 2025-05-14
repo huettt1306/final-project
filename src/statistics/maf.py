@@ -3,9 +3,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import subprocess
 import numpy as np
-from helper.config import PARAMETERS, TRIO_DATA, PATHS
 
-vcf_dir = PATHS["vcf_directory"]
+vcf_dir = "/home/huettt/Documents/nipt/NIPT-human-genetics/working/vcf_"
 output_dir = os.path.join(vcf_dir, "maf_analysis")
 os.makedirs(output_dir, exist_ok=True)
 chromosomes = [str(i) for i in range(1, 22)] + ["X"]

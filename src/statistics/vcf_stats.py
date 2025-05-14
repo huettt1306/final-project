@@ -2,16 +2,15 @@ import os
 import subprocess
 import pandas as pd
 import matplotlib.pyplot as plt
-from helper.config import PARAMETERS, TRIO_DATA, PATHS
 
-vcf_dir = PATHS["vcf_directory"]
+vcf_dir = "/home/huettt/Documents/nipt/NIPT-human-genetics/working/vcf_"
 output_dir = os.path.join(vcf_dir, "stats")
 os.makedirs(output_dir, exist_ok=True)
 
 chromosomes = [str(i) for i in range(1, 23)] + ["X"]
 summary_data = []
 
-print("📊 Bắt đầu thống kê toàn bộ thông số biến thể...")
+print("Bắt đầu thống kê toàn bộ thông số biến thể...")
 
 def stats_all():
     for chrom in chromosomes:
@@ -49,7 +48,6 @@ def stats_all():
             "InDels": num_indels
         })
 
-    # === Lưu bảng thống kê biến thể ===
     df = pd.DataFrame(summary_data)
     df["Chromosome"] = pd.Categorical(df["Chromosome"], categories=chromosomes, ordered=True)
     df.sort_values("Chromosome", inplace=True)
@@ -70,47 +68,6 @@ def plot_all():
     plt.savefig(os.path.join(output_dir, "variant_distribution.png"))
     plt.show()
 
-    print("✅ Đã hoàn tất phần 2 - Thống kê biến thể!")
-
-
-def heterozygosity():
-    print("📊 Bắt đầu phân tích đa dạng kiểu gen (Heterozygosity, MAF)...")
-
-    het_results = []
-    for chrom in chromosomes:
-        vcf_file = os.path.join(vcf_dir, f"chr{chrom}_variants.vcf.gz")
-        out_prefix = os.path.join(output_dir, f"chr{chrom}")
-        het_file = out_prefix + ".het"
-
-        subprocess.run(f"vcftools --gzvcf {vcf_file} --het --out {out_prefix}", shell=True)
-        if os.path.exists(het_file):
-            het_df = pd.read_csv(het_file, delim_whitespace=True)
-            het_df["CHROM"] = chrom
-            het_results.append(het_df)
-
-    if het_results:
-        het_df_all = pd.concat(het_results, ignore_index=True)
-        het_df_all.to_csv(os.path.join(output_dir, "heterozygosity_all_chromosomes.csv"), index=False)
-
-    maf_all = []
-    for chrom in chromosomes:
-        vcf_file = os.path.join(vcf_dir, f"chr{chrom}_variants.vcf.gz")
-        out_prefix = os.path.join(output_dir, f"chr{chrom}_maf")
-        subprocess.run(f"vcftools --gzvcf {vcf_file} --freq2 --out {out_prefix}", shell=True)
-        maf_file = out_prefix + ".frq"
-        if os.path.exists(maf_file):
-            maf_df = pd.read_csv(maf_file, delim_whitespace=True, comment="#")
-            maf_df["CHROM"] = chrom
-            maf_all.append(maf_df)
-
-    if maf_all:
-        maf_df_all = pd.concat(maf_all, ignore_index=True)
-        maf_df_all.to_csv(os.path.join(output_dir, "maf_all_chromosomes.csv"), index=False)
-
-    print("✅ Đã hoàn tất phần 3 - Đa dạng kiểu gen!")
-
-    # === Gợi ý bước tiếp theo ===
-    print("🎉 Tất cả thống kê đã được lưu trong thư mục:", output_dir)
-    print("📁 Bao gồm: Tổng biến thể, SNP/InDel, dị hợp tử, MAF và biểu đồ.")
+    print("Thống kê biến thể hoàn thành!")
 
 plot_all()

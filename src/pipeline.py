@@ -14,13 +14,6 @@ def parse_arguments():
         help="path/to/fastq"
     )
 
-    parser.add_argument(
-        '--gender',
-        type=int,
-        choices=[1, 2],
-        help="1 for male, 2 for female"
-    )
-
     return parser.parse_args()
 
 def main():
@@ -28,7 +21,6 @@ def main():
     
     args = parse_arguments()
     fqlist = args.input_path
-    #PARAMETERS["gender"] =  args.gender
     print(f"Start pipeline for samples in {fqlist}...")
 
     # Step 1: Alignment and statistics

@@ -203,8 +203,11 @@ def run_bedtools(sample_id, outdir):
     # Step 1: Bedtools genome coverage
     logger.info("Running Bedtools genome coverage...")
     with open(cvg_bed_gz, "wb") as cvg_out:
-        subprocess.run([BEDTOOLS, "genomecov", "-ibam", bqsr_bam, "-bga", "-split"], stdout=subprocess.PIPE, check=True)
-        subprocess.run([BGZIP], stdin=subprocess.PIPE, stdout=cvg_out, check=True)
+        bedtools = subprocess.Popen(
+            [BEDTOOLS, "genomecov", "-ibam", bqsr_bam, "-bga", "-split"],
+            stdout=subprocess.PIPE
+        )
+        subprocess.run([BGZIP], stdin=bedtools.stdout, stdout=cvg_out, check=True)
     logger.info("** sorted.rmdup.realign.BQSR.cvg.bed.gz done **")
 
     # Step 2: Index the compressed BED file

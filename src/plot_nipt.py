@@ -159,54 +159,6 @@ def process_summary(df_path, gt_stats, chr_, mother, child):
     maf_df = compute_cumsum_stats(df, gt_stats, chr_, mother, child)
 
     return bin_df, maf_df
-
-
-def plot_stats(df_bin, coverage, ff, type, Ox):
-    stats = ['call_rate_gt', 'accuracy_gt', 'call_rate_alt', 'accuracy_alt']  
-    statnames = [
-        "Tỷ lệ gọi kiểu gen",          
-        "Độ chính xác kiểu gen",      
-        "Tỷ lệ gọi kiểu gen có allen thay thế",       
-        "Độ chính xác của allen thay thế"      
-    ]
-
-    for stat in stats:
-        fig, axs = plt.subplots(1, 2, figsize=(12, 5), sharey=True)
-        handles = []
-        labels = []
-
-        for i, relation in enumerate(['mother', 'child']):
-            ax = axs[i]
-            for nst in df_bin['NST'].unique():
-                nst_data = df_bin[df_bin['NST'] == nst]
-                maf_values = nst_data[Ox]
-                accuracy_values = nst_data[f"{stat}_{relation}"]
-
-                if nst != 'all':
-                    line, = ax.plot(maf_values, accuracy_values, label=nst, linestyle='-', alpha=0.6, linewidth=1)
-                else:
-                    line, = ax.plot(maf_values, accuracy_values, label=nst, color="blue", linestyle='-', alpha=0.9, linewidth=3)
-
-                if i == 0:
-                    handles.append(line)
-                    labels.append(nst)
-
-            ax.set_title(
-                f"{statnames[stats.index(stat)]} so với hệ gen của {'mẹ' if relation == 'mother' else 'thai nhi'}\n"
-                f"(Độ bao phủ {coverage}x, tỷ lệ DNA thai nhi {ff * 100:.0f}%)",
-                fontsize=11
-            )
-            ax.set_xlabel('Tần số alen (MAF)', fontsize=10)
-            if i == 0:
-                ax.set_ylabel('Giá trị', fontsize=10)
-            ax.grid(True)
-
-        fig.legend(handles, labels, loc='lower center', ncol=5, fontsize=9)
-        fig.tight_layout(pad=3.0, rect=[0, 0.1, 1, 1]) 
-
-        filename = f"{stat}_{coverage}_{ff}_{type}.png"
-        plt.savefig(os.path.join(PATHS["plot_directory"], "png", "nipt", filename), dpi=180)
-        plt.close()
         
 
 def plot_stats_multiple(data_by_coverage, stat, relation, Ox, type):

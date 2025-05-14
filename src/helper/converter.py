@@ -10,30 +10,6 @@ def convert_cram_to_fastq(cram_path, output_fastq_path_1, output_fastq_path_2):
     subprocess.run(command, shell=True, check=True)
 
 
-def convert_genotype(genotype):
-    if len(genotype) < 2:
-        return "-1/-1"
-    allen1 = genotype[0] if isinstance(genotype[0], int) else -1
-    allen2 = genotype[1] if isinstance(genotype[1], int) else -1
-    if allen1 > allen2:
-        allen1, allen2 = allen2, allen1
-    return f"{allen1}/{allen2}"
-
-def convert_af_to_list(af):
-    try:
-        if isinstance(af, (int, float)):  
-            return [float(af)]  
-        elif isinstance(af, str):  
-            return [float(a.strip()) for a in af.strip("()").split(",")]  
-        elif isinstance(af, (list, tuple)):
-            return list(map(float, af))  
-        else:
-            return [-1.0]  
-    except Exception as e:
-        print(f"Lỗi trong convert_af_to_list: {e}, af={af}")  
-        return [-1.0]  
-
-
 def convert_haploid_to_diploid(vcf_path):
     tmp1 = vcf_path.replace(".vcf.gz", ".tmp1.vcf.gz")
     tmp2 = vcf_path.replace(".vcf.gz", ".tmp2.vcf.gz")

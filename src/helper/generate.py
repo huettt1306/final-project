@@ -1,12 +1,36 @@
-import os, subprocess
+import os, subprocess, random
 from helper.config import PATHS, TOOLS, PARAMETERS
 from helper.path_define import fastq_path_lane1, fastq_single_path, fastq_nipt_path
 from helper.logger import setup_logger
-from helper.file_utils import filter_with_seqtk, filter_and_trim_with_seqtk
 from concurrent.futures import ThreadPoolExecutor
 
 logger = setup_logger(os.path.join(PATHS["logs"], "generate.log"))
 total_reads = PARAMETERS["refsize"] / PARAMETERS["read_length"]
+
+
+def filter_and_trim_with_seqtk(input_file, output_file, num_reads, max_length=PARAMETERS["read_length"]):
+    logger.info(f"Filtering {num_reads} reads from {input_file} and trimming to {max_length}bp...")
+    print(f"Filtering {num_reads} reads from {input_file} and trimming to {max_length}bp...")
+
+    temp_output = output_file.replace(".fastq.gz", "_tmp.fastq.gz")
+
+    if not os.path.exists(input_file):
+        logger.error(f"Sample {input_file} cannot be read.")
+        raise RuntimeError(f"Failed to read sample: {input_file}")
+
+    seed = random.randint(1, 10**9 + 7)
+
+    cmd_sample = f"{TOOLS['seqtk']} sample -s {seed} {input_file} {num_reads} > {temp_output}"
+    subprocess.run(cmd_sample, shell=True, check=True)
+
+    cmd_trim = f"{TOOLS['seqtk']} trimfq -L {max_length} {temp_output} | gzip > {output_file}"
+    subprocess.run(cmd_trim, shell=True, check=True)
+
+    os.remove(temp_output)
+
+    logger.info(f"Filtering and trimming done. Output saved to {output_file}.")
+    return output_file
+
 
 def generate_random_reads_files(name, coverage, output_prefix):
     input_file = fastq_path_lane1(name)

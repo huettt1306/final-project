@@ -1,12 +1,10 @@
 from helper.config import PARAMETERS, TRIO_DATA, PATHS
-from helper.path_define import statistic_outdir, fastq_single_path, statistic_summary
+from helper.path_define import fastq_single_path, statistic_summary
 
 import os
 import pandas as pd
 from collections import defaultdict
 import matplotlib.pyplot as plt
-import numpy as np
-from pandas.api.types import CategoricalDtype
 
 def sort_nst(nst):
     if nst == "chrX":
@@ -27,8 +25,6 @@ def load_ground_truth_stats(path):
         gt_stats[chr_][sample][maf] = {
             "total_gt": row["Total_GT"],
             "alt_gt": row["ALT_GT"],
-            "het_gt": row["HET_GT"],
-            "hom_alt": row["HOM_ALT"]
         }
     return gt_stats
 
@@ -153,39 +149,6 @@ def process_summary(df_path, gt_stats, chr_, sample):
         results_maf[method] = maf_df
 
     return results_bin, results_maf
-
-
-def plot_alt_calls_by_nst(pl_stats, save_path=os.path.join(PATHS["plot_directory"], "png", f"basevar_overal.png")):
-    plt.figure(figsize=(12, 6))
-
-    markers = ['o', 's', '^', 'D']
-    colors = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red']
-
-    for i, item in enumerate(pl_stats):
-        coverage = item["coverage"]
-        df = item["avg_maf"]
-
-        maf_zero = df[df["MAF_≥"] == 0]
-
-        x = maf_zero["NST"]
-        y = maf_zero["ALT_true"] + maf_zero["ALT_false"]
-
-        plt.plot(x, y,
-                 marker=markers[i % len(markers)],
-                 color=colors[i % len(colors)],
-                 label=f"{coverage}x",
-                 linewidth=2)
-
-    plt.xlabel("Chromosome (NST)")
-    plt.ylabel("Số biến thể có allen thay thế đã gọi được")
-    plt.title("Số biến thể có allen thay thế đã gọi được theo từng NST và độ bao phủ")
-    plt.legend(title="Coverage")
-    plt.grid(True)
-    plt.tight_layout()
-
-    plt.savefig(save_path)
-    plt.close()
-    print(f"✅ Biểu đồ đã lưu vào {save_path}")
 
 
 def plot_stats_multiple(df_by_coverage, method, type, Ox):
@@ -353,7 +316,7 @@ def plot_basevar_recheck(one_sample_path, five_sample_path):
 def summary_df(output_dir):
     gt_stats = load_ground_truth_stats(PATHS["ground_truth_stat"])  
     for coverage in PARAMETERS["coverage"]:
-        print(f"📊 Processing coverage = {coverage}")
+        print(f"Processing coverage = {coverage}")
         
         all_stats = {"bin": [], "maf": []}
 
@@ -410,7 +373,7 @@ def plot_all(output_dir):
     df_by_coverage_maf = {}
 
     for coverage in PARAMETERS["coverage"]:
-        print(f"📊 Processing coverage = {coverage}")
+        print(f"Processing coverage = {coverage}")
 
         for method in ["glimpse"]:
             output_file_bin = os.path.join(output_dir, f"{method}_bin_coverage_{coverage}.csv")
@@ -421,7 +384,7 @@ def plot_all(output_dir):
             df_by_coverage_bin[coverage] = avg_bin
             df_by_coverage_maf[coverage] = avg_maf
 
-            print(f"✅ {method} → Loaded data for coverage {coverage}")
+            print(f"{method} → Loaded data for coverage {coverage}")
 
             if method == "glimpse":
                 pl_stats.append({
@@ -433,12 +396,11 @@ def plot_all(output_dir):
         plot_stats_multiple(df_by_coverage_bin, method, "bin", "MAF")
         plot_stats_multiple(df_by_coverage_maf, method, "maf", "MAF_≥")
 
-    print("🎉 All statistics saved successfully.")
+    print("All statistics saved successfully.")
     
     plot_gt_stacked(pl_stats, 0)
     plot_gt_stacked(pl_stats, 1)
     plot_gt_stacked(pl_stats, 5)
-    plot_alt_calls_by_nst(pl_stats)
 
 
 
